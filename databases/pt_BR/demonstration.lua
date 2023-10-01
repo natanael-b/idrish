@@ -1,5 +1,6 @@
 DB = {
     ["criar"] = {
+        [0] = "echo 'criar o que?'",
         ["arquivo"] = {
             [0] = "echo -n > '\0{2}'"
         },
