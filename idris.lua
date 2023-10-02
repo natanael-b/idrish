@@ -1,9 +1,17 @@
-#!/bin/lua5.4
+#!/usr/bin/env lua5.4
+
+local os = require('os')
 
 do
     local lang,database,prefix
+    local show_help = false
 
     for i,argument in ipairs (arg) do
+      if tostring(argument) == "--help" or tostring(argument) == "-h" then
+          show_help = true
+          arg[i] = false
+          goto _continue
+      end
       if lang == nil and tostring(argument):sub(1,7) == "--lang=" then
         lang = tostring(argument):sub(8,-1)
         arg[i] = false
@@ -22,6 +30,16 @@ do
         goto _continue
       end
       ::_continue::
+    end
+
+    local locale_env = os.getenv("LANG")
+
+    if lang == nil and locale_env ~= nil then
+        i, j = locale_env:find("^[^.]*")
+        lang = locale_env:sub(i, j)
+    end
+    if database == nil then
+        database = "demonstration"
     end
 
     require("languages."..lang)
