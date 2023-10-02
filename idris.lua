@@ -1,7 +1,9 @@
 #!/bin/lua5.4
 
 do
-    local lang,database,prefix
+    local lang,database,prefix,env_lang
+    env_lang = os.getenv("LANG")
+    env_lang = env_lang and env_lang:gsub("%.UTF%-8","")  or "C"
 
     for i,argument in ipairs (arg) do
       if lang == nil and tostring(argument):sub(1,7) == "--lang=" then
@@ -22,6 +24,17 @@ do
         goto _continue
       end
       ::_continue::
+    end
+
+    local f_lang = io.open("languages/"..env_lang..".lua","r")
+    if f_lang then
+      lang = lang or env_lang
+      f_lang:close()
+    end
+
+    if lang == nil then
+      print "Missing --lang= parameter and env LANG doenst have a compatible language"
+      os.exit(1)
     end
 
     require("languages."..lang)
