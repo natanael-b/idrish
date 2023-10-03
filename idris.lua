@@ -1,44 +1,81 @@
 #!/bin/lua5.4
 
+function Print_usage()
+    print [[
+
+ Idris v0.1
+--------------------------------------------------------------------------------
+
+Turn natural language inputs into scriptable commands
+
+Syntax:
+~~~~~~~~
+  lua5.4 idris.lua --lang=<language code> --database=<database with commands  \
+    'input 1' 'input 2' 'input 3' 'input 4'...
+
+Test demonstration:
+~~~~~~~~~~~~~~~~~~~
+  lua5.4 idris.lua --lang=pt_BR --database=demonstration         \
+    'crie o arquivo teste.txt, coloque nele a frase Olá Mundo!'
+
+]]
+  os.exit(0)
+end
+
+local prefix = ""
+
 do
-    local lang,database,prefix,env_lang
+    local lang, database, env_lang
     env_lang = os.getenv("LANG")
-    env_lang = env_lang and env_lang:gsub("%.UTF%-8","")  or "C"
+    env_lang = env_lang and env_lang:gsub("%.UTF%-8", "") or "C"
 
-    for i,argument in ipairs (arg) do
-      if lang == nil and tostring(argument):sub(1,7) == "--lang=" then
-        lang = tostring(argument):sub(8,-1)
-        arg[i] = false
-        goto _continue
-      end
+    for i, argument in ipairs(arg) do
+        if lang == nil and tostring(argument):sub(1, 7) == "--lang=" then
+            lang = tostring(argument):sub(8, -1)
+            arg[i] = false
+            goto _continue
+        end
 
-      if database == nil and tostring(argument):sub(1,11) == "--database=" then
-        database = tostring(argument):sub(12,-1)
-        arg[i] = false
-        goto _continue
-      end
+        if database == nil and tostring(argument):sub(1, 11) == "--database=" then
+            database = tostring(argument):sub(12, -1)
+            arg[i] = false
+            goto _continue
+        end
 
-      if prefix == nil and tostring(argument):sub(1,9) == "--prefix=" then
-        prefix = tostring(argument):sub(10,-1)
-        arg[i] = false
-        goto _continue
-      end
-      ::_continue::
+        if prefix == nil and tostring(argument):sub(1, 9) == "--prefix=" then
+            prefix = tostring(argument):sub(10, -1)
+            arg[i] = false
+            goto _continue
+        end
+
+        if argument == "-h" or argument == "--help" then
+            Print_usage()
+        end
+        ::_continue::
     end
 
-    local f_lang = io.open("languages/"..env_lang..".lua","r")
+    if #arg == 0 then
+        Print_usage()
+    end
+
+    local f_lang = io.open("languages/" .. env_lang .. ".lua", "r")
     if f_lang then
-      lang = lang or env_lang
-      f_lang:close()
+        lang = lang or env_lang
+        f_lang:close()
     end
 
     if lang == nil then
-      print "Missing --lang= parameter and env LANG doenst have a compatible language"
-      os.exit(1)
+        print "Missing --lang= parameter and env LANG doesn't have a compatible language"
+        os.exit(1)
     end
 
-    require("languages."..lang)
-    require("databases."..lang.."."..database)
+    if database == nil then
+        print "Missing --database= parameter"
+        os.exit(1)
+    end
+
+    require("languages." .. lang)
+    require("databases." .. lang .. "." .. database)
 end
 
 Words = {}
@@ -97,8 +134,12 @@ function Find_DB_key(current_index,list)
 end
 
 State = {}
+local has_input = false
+
 for i, input in ipairs(arg) do
     if input == false then goto skip_input end
+
+    has_input = true
 
     Split((prefix or "")..input.." \0")
     local current_list = {}
@@ -118,7 +159,7 @@ for i, input in ipairs(arg) do
             Words[_] = Language.infinitive(word:lower())
 
             State.verb = Find_DB_key(_,DB) or DB[Words[_]]
-            
+
             if State.verb then
                 State.arguments = State.arguments or {}
                 State.arguments_fallback = State.arguments_fallback or {}
@@ -169,13 +210,11 @@ for i, input in ipairs(arg) do
             end
 
             -- Fix empty 2nd argument
-
             if State.current_list_index == 2 and #(State.arguments[2] or {}) == 0 then
                 arguments[2] = arguments[1]
             end
 
             -- Fix empty arguments using the fallbacks
-
             for j = 2, State.max_index, 1 do
                 if #(State.arguments[j] or {}) == 0 then
                     arguments[j] = table.concat(State.arguments_fallback[j] or {}," ")
@@ -188,7 +227,6 @@ for i, input in ipairs(arg) do
             end
 
             -- Fix empty arguments using the next argument
-
             for j = 2, State.max_index, 1 do
                 if (#(State.arguments[j] or {}) == 0) and State.old_noun_word ~= State.noun_word and #(State.arguments[j+1] or {}) ~= 0 then
                     arguments[j] = arguments[j+1]
@@ -249,4 +287,8 @@ for i, input in ipairs(arg) do
         ::continue::
     end
     ::skip_input::
+end
+
+if has_input == false then
+    Print_usage()
 end
