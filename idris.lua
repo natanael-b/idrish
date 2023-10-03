@@ -106,8 +106,14 @@ for i, input in ipairs(arg) do
 
     for _, word in ipairs(Words) do
         if word == false then goto continue end
-
+    
         ::start::
+
+        State.max_index = State.max_index or 0
+        State.current_list_index = State.current_list_index or 0
+        State.max_index = State.max_index > State.current_list_index and State.max_index or State.current_list_index
+
+
         if State.verb == nil then
             Words[_] = Language.infinitive(word:lower())
 
@@ -155,36 +161,46 @@ for i, input in ipairs(arg) do
                 table.remove(State.arguments[1],1)
             end
 
-            local argument_1 = table.concat(State.arguments[1] or {}," ")
-            local argument_2 = table.concat(State.arguments[2] or {}," ")
-            local argument_3 = table.concat(State.arguments[3] or {}," ")
+            local arguments = {}
+
+            -- Fill the arguments table
+            for j = 1, State.max_index, 1 do
+                arguments[#arguments+1] = table.concat(State.arguments[j] or {}," ")
+            end
+
+            -- Fix empty 2nd argument
 
             if State.current_list_index == 2 and #(State.arguments[2] or {}) == 0 then
-                argument_2 = argument_1
+                arguments[2] = arguments[1]
             end
 
-            if #(State.arguments[2] or {}) == 0 then
-                argument_2 = table.concat(State.arguments_fallback[2] or {}," ")
-            end
+            -- Fix empty arguments using the fallbacks
 
-            if #(State.arguments[3] or {}) == 0 then
-                argument_3 = table.concat(State.arguments_fallback[3] or {}," ")
+            for j = 2, State.max_index, 1 do
+                if #(State.arguments[j] or {}) == 0 then
+                    arguments[j] = table.concat(State.arguments_fallback[j] or {}," ")
+                end
             end
 
             if (#(State.arguments[2] or {}) == 0) and State.old_noun_word ~= State.noun_word and #(State.arguments[1] or {}) ~= 0 then
-                argument_2 = argument_1
+                arguments[2] = arguments[1]
                 goto build_cmd
             end
 
-            if (#(State.arguments[2] or {}) == 0) and State.old_noun_word ~= State.noun_word and #(State.arguments[3] or {}) ~= 0 then
-                argument_2 = argument_3
+            -- Fix empty arguments using the next argument
+
+            for j = 2, State.max_index, 1 do
+                if (#(State.arguments[j] or {}) == 0) and State.old_noun_word ~= State.noun_word and #(State.arguments[j+1] or {}) ~= 0 then
+                    arguments[j] = arguments[j+1]
+                end
             end
 
             ::build_cmd::
 
             local cmd = tostring((State.noun or State.verb)[0])
-            cmd = cmd:gsub("\0{1}",argument_1):gsub("\0{2}",argument_2):gsub("\0{3}",argument_3)
-
+            for j = 1, State.max_index, 1 do
+                cmd = cmd:gsub("\0{"..j.."}",arguments[j])
+            end
             print(cmd)
 
             State.noun = nil
@@ -208,12 +224,14 @@ for i, input in ipairs(arg) do
             if sub_noun then
                 State.noun = sub_noun
 
-                State.arguments[3] = {}
-                State.current_list_index = 3
-                State.arguments_fallback[3] = State.arguments_fallback[3] or {}
+                local index = State.current_list_index+1
 
-                current_list = State.arguments[3]
-                current_fallback = State.arguments_fallback[3]
+                State.arguments[index] = {}
+                State.arguments_fallback[index] = State.arguments_fallback[index] or {}
+
+                current_list = State.arguments[index]
+                current_fallback = State.arguments_fallback[index]
+                State.current_list_index = index
                 goto continue
             end
 

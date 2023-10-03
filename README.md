@@ -65,7 +65,7 @@ Sinta-se à vontade para fornecer feedback, relatar problemas ou contribuir para
 
 # TODO
 
-- [ ] Mais de 3 níveis de especificação
+- [x] Mais de 3 níveis de especificação
 - [ ] Gerar bancos de dados a partir de listas de exemplo
 
 
