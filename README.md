@@ -60,7 +60,7 @@ Este script depende apenas do interpretador padrão da linguagem `Lua`, na vers�
 # Licença
 Este script é fornecido sob uma licença de código aberto. Você pode encontrar os detalhes da licença no arquivo LICENSE incluído neste projeto.
 
-Feedback e Contribuições
+# Feedback e Contribuições
 Sinta-se à vontade para fornecer feedback, relatar problemas ou contribuir para este projeto abrindo problemas ou solicitações de pull no GitHub. Suas contribuições são bem-vindas e apreciadas.
 
 # TODO
