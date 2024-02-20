@@ -23,6 +23,7 @@ Test demonstration:
 end
 
 local prefix = ""
+local command_termination = "\n"
 
 do
     local lang, database, env_lang
@@ -44,6 +45,12 @@ do
 
         if prefix == nil and tostring(argument):sub(1, 9) == "--prefix=" then
             prefix = tostring(argument):sub(10, -1)
+            arg[i] = false
+            goto _continue
+        end
+
+        if argument == "--shell-output" then
+            command_termination = "; "
             arg[i] = false
             goto _continue
         end
@@ -239,7 +246,7 @@ for i, input in ipairs(arg) do
             for j = 1, State.max_index, 1 do
                 cmd = cmd:gsub("\0{"..j.."}",arguments[j])
             end
-            print(cmd)
+            io.write(cmd..command_termination)
 
             State.noun = nil
             State.verb = nil
@@ -292,3 +299,5 @@ end
 if has_input == false then
     Print_usage()
 end
+
+print()
