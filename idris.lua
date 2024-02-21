@@ -24,6 +24,7 @@ end
 
 local prefix = ""
 local command_termination = "\n"
+local enclose = ""
 
 do
     local lang, database, env_lang
@@ -92,7 +93,7 @@ function Split(input)
 
     for word in tostring(input):gmatch("[^ ]*") do
         word = word == "" and " " or word
-    
+
         if word:sub(-1,-1) == "," then
             word = word:sub(1,-2)
             Words[#Words+1] = word
@@ -154,7 +155,7 @@ for i, input in ipairs(arg) do
 
     for _, word in ipairs(Words) do
         if word == false then goto continue end
-    
+
         ::start::
 
         State.max_index = State.max_index or 0
@@ -165,7 +166,7 @@ for i, input in ipairs(arg) do
         if State.verb == nil then
             Words[_] = Language.infinitive(word:lower())
 
-            State.verb = Find_DB_key(_,DB) or DB[Words[_]]
+            State.verb = Find_DB_key(_,DB) or DB[Words[_]] or DB[word]
 
             if State.verb then
                 State.arguments = State.arguments or {}
@@ -246,7 +247,15 @@ for i, input in ipairs(arg) do
             for j = 1, State.max_index, 1 do
                 cmd = cmd:gsub("\0{"..j.."}",arguments[j])
             end
-            io.write(cmd..command_termination)
+            -- Patterns ends with \255, so we not add termination
+            if cmd:sub(-1,-1) ~= "\255" then
+                io.write(cmd..command_termination..(word == "\0" and enclose or ""))
+            else
+                cmd = cmd:sub(1,-2)
+                enclose = cmd:gsub("^.*\2","")
+                cmd = cmd:gsub("\2.*","")
+                io.write(cmd)
+            end
 
             State.noun = nil
             State.verb = nil
