@@ -212,6 +212,9 @@ for i, input in ipairs(arg) do
 
             local arguments = {}
 
+            -- Allow implicit personal pronoun
+            State.noun = State.noun or State.verb[State.noun_word]
+
             -- Fill the arguments table
             for j = 1, State.max_index, 1 do
                 arguments[#arguments+1] = table.concat(State.arguments[j] or {}," ")
@@ -270,6 +273,15 @@ for i, input in ipairs(arg) do
         if Language.personal_pronoun[word] then
             word = State.noun_word
             goto start
+        end
+
+        if Language.pronouns[word] and State.verb[State.noun_word] and not Language.personal_pronoun[Words[_-1]] then
+            word = State.noun_word or word
+            goto start
+        end
+
+        if State.verb[State.noun_word] == nil and Language.prepositions[Words[_+1]] then
+            goto continue
         end
 
         if State.noun then
