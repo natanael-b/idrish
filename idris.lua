@@ -23,6 +23,8 @@ Test demonstration:
 end
 
 local prefix = ""
+local command_termination = "\n"
+local enclose = ""
 
 do
     local lang, database, env_lang
@@ -44,6 +46,12 @@ do
 
         if prefix == nil and tostring(argument):sub(1, 9) == "--prefix=" then
             prefix = tostring(argument):sub(10, -1)
+            arg[i] = false
+            goto _continue
+        end
+
+        if argument == "--shell-output" then
+            command_termination = "; "
             arg[i] = false
             goto _continue
         end
@@ -85,7 +93,7 @@ function Split(input)
 
     for word in tostring(input):gmatch("[^ ]*") do
         word = word == "" and " " or word
-    
+
         if word:sub(-1,-1) == "," then
             word = word:sub(1,-2)
             Words[#Words+1] = word
@@ -111,7 +119,6 @@ function Find_DB_key(current_index,list)
             avaialable_nouns.max_spaces = avaialable_nouns.max_spaces > spaces_count and avaialable_nouns.max_spaces or spaces_count
         end
     end
-
 
     for i = (avaialable_nouns.max_spaces or -1), 1, -1 do
         for _, noun in ipairs(avaialable_nouns[i]) do
@@ -147,7 +154,7 @@ for i, input in ipairs(arg) do
 
     for _, word in ipairs(Words) do
         if word == false then goto continue end
-    
+
         ::start::
 
         State.max_index = State.max_index or 0
@@ -158,7 +165,7 @@ for i, input in ipairs(arg) do
         if State.verb == nil then
             Words[_] = Language.infinitive(word:lower())
 
-            State.verb = Find_DB_key(_,DB) or DB[Words[_]]
+            State.verb = Find_DB_key(_,DB) or DB[Words[_]] or DB[word]
 
             if State.verb then
                 State.arguments = State.arguments or {}
@@ -204,6 +211,9 @@ for i, input in ipairs(arg) do
 
             local arguments = {}
 
+            -- Allow implicit personal pronoun
+            State.noun = State.noun or State.verb[State.noun_word]
+
             -- Fill the arguments table
             for j = 1, State.max_index, 1 do
                 arguments[#arguments+1] = table.concat(State.arguments[j] or {}," ")
@@ -233,13 +243,39 @@ for i, input in ipairs(arg) do
                 end
             end
 
+            -- Allow implicit pronouns
+            if (State.noun or State.verb)[0] == nil then
+                local words = {}
+                for _word in tostring(arguments[1]):gmatch("[^ ]*") do
+                    _word = _word == "" and " " or _word
+                    words[#words+1] = _word
+                end
+                local noun_fallback = ""
+                for j = 1, #words, 1 do
+                    noun_fallback = noun_fallback == "" and words[j] or noun_fallback.." "..words[j]
+                    if State.noun[noun_fallback] then
+                        for _ = 1, j, 1 do table.remove(words,1) end
+                        State.noun = State.noun[noun_fallback]
+                        break
+                    end
+                end
+            end
+
             ::build_cmd::
 
             local cmd = tostring((State.noun or State.verb)[0])
             for j = 1, State.max_index, 1 do
                 cmd = cmd:gsub("\0{"..j.."}",arguments[j])
             end
-            print(cmd)
+            -- Patterns ends with \255, so we not add termination
+            if cmd:sub(-1,-1) ~= "\255" then
+                io.write(cmd..command_termination..(word == "\0" and enclose or ""))
+            else
+                cmd = cmd:sub(1,-2)
+                enclose = cmd:gsub("^.*\2","")
+                cmd = cmd:gsub("\2.*","")
+                io.write(cmd)
+            end
 
             State.noun = nil
             State.verb = nil
@@ -254,6 +290,15 @@ for i, input in ipairs(arg) do
         if Language.personal_pronoun[word] then
             word = State.noun_word
             goto start
+        end
+
+        if Language.pronouns[word] and State.verb[State.noun_word] and not Language.personal_pronoun[Words[_-1]] then
+            word = State.noun_word or word
+            goto start
+        end
+
+        if State.verb[State.noun_word] == nil and Language.prepositions[Words[_+1]] then
+            goto continue
         end
 
         if State.noun then
@@ -292,3 +337,5 @@ end
 if has_input == false then
     Print_usage()
 end
+
+print()
