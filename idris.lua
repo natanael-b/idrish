@@ -120,7 +120,6 @@ function Find_DB_key(current_index,list)
         end
     end
 
-
     for i = (avaialable_nouns.max_spaces or -1), 1, -1 do
         for _, noun in ipairs(avaialable_nouns[i]) do
             local words_combined = Words[current_index]
@@ -241,6 +240,24 @@ for i, input in ipairs(arg) do
             for j = 2, State.max_index, 1 do
                 if (#(State.arguments[j] or {}) == 0) and State.old_noun_word ~= State.noun_word and #(State.arguments[j+1] or {}) ~= 0 then
                     arguments[j] = arguments[j+1]
+                end
+            end
+
+            -- Allow implicit pronouns
+            if (State.noun or State.verb)[0] == nil then
+                local words = {}
+                for _word in tostring(arguments[1]):gmatch("[^ ]*") do
+                    _word = _word == "" and " " or _word
+                    words[#words+1] = _word
+                end
+                local noun_fallback = ""
+                for j = 1, #words, 1 do
+                    noun_fallback = noun_fallback == "" and words[j] or noun_fallback.." "..words[j]
+                    if State.noun[noun_fallback] then
+                        for _ = 1, j, 1 do table.remove(words,1) end
+                        State.noun = State.noun[noun_fallback]
+                        break
+                    end
                 end
             end
 
