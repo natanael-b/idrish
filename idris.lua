@@ -1,341 +1,389 @@
 #!/bin/lua5.4
+local function printUsage()
+  print([[
 
-function Print_usage()
-    print [[
+    Idris v1.0
+    --------------------------------------------------------------------------------
+  
+    Convert natural language instructions into executable scripts
+  
+    Syntax:
+    ~~~~~~~~
+    lua5.4 idris.lua --lang=<language code> --database=<database with commands> \
+      [--prefix=<prefix>] [--shell-output] [--verbose] [--help] 'input 1' 'input 2' ...
+  
+    Options:
+    ~~~~~~~
+    --lang=<language code>   =>  Specifies the language to be used.
+    --database=<database>    =>  Defines the source of commands.
+    --prefix=<prefix>        =>  Adds an optional prefix to commands.
+    --shell-output           =>  Formats the output for shell script usage.
+    --interactive            =>  Entra no modo iterativo
+    --compile, -c            =>  Generate a database from datasheet.tsv file
+    --verbose, -v            =>  Activates verbose output.
+    --debug, -d              =>  Prints de database location of each command
+    --help, -h               =>  Displays this help message.
+  
+    Example Usage:
+    ~~~~~~~~~~~~~~
+    lua5.4 idris.lua --lang=pt_BR --database=demonstration \
+      'create file test.txt, put the phrase Hello World in it!'
 
- Idris v0.1
---------------------------------------------------------------------------------
-
-Turn natural language inputs into scriptable commands
-
-Syntax:
-~~~~~~~~
-  lua5.4 idris.lua --lang=<language code> --database=<database with commands  \
-    'input 1' 'input 2' 'input 3' 'input 4'...
-
-Test demonstration:
-~~~~~~~~~~~~~~~~~~~
-  lua5.4 idris.lua --lang=pt_BR --database=demonstration         \
-    'crie o arquivo teste.txt, coloque nele a frase Olá Mundo!'
-
-]]
+    
+    ]])
   os.exit(0)
 end
 
-local prefix = ""
-local command_termination = "\n"
-local enclose = ""
+local lang,database,prefix,separator,interactive,shellOutput,debugMode = nil,nil,"","\n",false,false,false
 
-do
-    local lang, database, env_lang
-    env_lang = os.getenv("LANG")
-    env_lang = env_lang and env_lang:gsub("%.UTF%-8", "") or "C"
+local tokens,contexts,current_context = {},{},{}
 
-    for i, argument in ipairs(arg) do
-        if lang == nil and tostring(argument):sub(1, 7) == "--lang=" then
-            lang = tostring(argument):sub(8, -1)
-            arg[i] = false
-            goto _continue
-        end
-
-        if database == nil and tostring(argument):sub(1, 11) == "--database=" then
-            database = tostring(argument):sub(12, -1)
-            arg[i] = false
-            goto _continue
-        end
-
-        if prefix == nil and tostring(argument):sub(1, 9) == "--prefix=" then
-            prefix = tostring(argument):sub(10, -1)
-            arg[i] = false
-            goto _continue
-        end
-
-        if argument == "--shell-output" then
-            command_termination = "; "
-            arg[i] = false
-            goto _continue
-        end
-
-        if argument == "-h" or argument == "--help" then
-            Print_usage()
-        end
-        ::_continue::
-    end
-
-    if #arg == 0 then
-        Print_usage()
-    end
-
-    local f_lang = io.open("languages/" .. env_lang .. ".lua", "r")
-    if f_lang then
-        lang = lang or env_lang
-        f_lang:close()
-    end
-
-    if lang == nil then
-        print "Missing --lang= parameter and env LANG doesn't have a compatible language"
-        os.exit(1)
-    end
-
-    if database == nil then
-        print "Missing --database= parameter"
-        os.exit(1)
-    end
-
-    require("languages." .. lang)
-    require("databases." .. lang .. "." .. database)
+local function split(input)
+  local words = {}
+  for word in input:gmatch "[^%s]+" do
+    words[#words+1] = word
+  end
+  return words
 end
 
-Words = {}
+local function find(index,base,skip_recursive)
+  local block = ""
+  local struct = {}
+  local next_index = 0
 
-function Split(input)
-    Words = {}
+  local candidate = ""
 
-    for word in tostring(input):gmatch("[^ ]*") do
-        word = word == "" and " " or word
+  for i=index,#tokens do
+    local token = tokens[i]
+    token = Language.normalize((base == DB and candidate == "") and Language.infinitive(token:lower()) or token)
 
-        if word:sub(-1,-1) == "," then
-            word = word:sub(1,-2)
-            Words[#Words+1] = word
-            Words[#Words+1] = ","
-        else
-            Words[#Words+1] = word
-        end
+    candidate = candidate == "" and token or candidate.." "..token
+    if base[candidate] then
+      block = candidate
+      next_index = i
+      struct = base[candidate]
+      break
     end
-end
+  end
 
-function Find_DB_key(current_index,list)
-    if list == nil then return nil end
-
-    local avaialable_nouns= {}
-
-    for noun in pairs(list) do
-        if type(noun) == "string" then
-            local _,spaces_count = noun:gsub(" ","")
-            avaialable_nouns[spaces_count] = avaialable_nouns[spaces_count] or {}
-            avaialable_nouns[spaces_count][#avaialable_nouns[spaces_count]+1] = noun
-
-            avaialable_nouns.max_spaces = avaialable_nouns.max_spaces or 0
-            avaialable_nouns.max_spaces = avaialable_nouns.max_spaces > spaces_count and avaialable_nouns.max_spaces or spaces_count
-        end
+  if skip_recursive then
+    if block == "" and index < #tokens+1 then
+      return find(index+1,base,true)
     end
+  end
 
-    for i = (avaialable_nouns.max_spaces or -1), 1, -1 do
-        for _, noun in ipairs(avaialable_nouns[i]) do
-            local words_combined = Words[current_index]
-            for _ = 1, i, 1 do
-                words_combined = words_combined.." "..(Words[current_index+1] or "")
-            end
-
-            if noun == words_combined then
-                for _ = 1, i, 1 do
-                    Words[current_index+1] = false
-                end
-
-                return list[words_combined]
-            end
-        end
-    end
-
+  if block == "" then
     return nil
+  end
+
+  return block,struct,next_index
 end
 
-State = {}
-local has_input = false
+local function printContexts(levels,base)
+  for _,context in ipairs(base) do
+    print(("  "):rep(levels).."local db_slice = {")
+    print(("  "):rep(levels).."  trigger = '"..context.trigger:gsub("\n","\\n"):gsub("'","\\'").."',")
+    print(("  "):rep(levels).."  arg = '"..context.arg:gsub("\n","\\n"):gsub("'","\\'").."',")
+    print(("  "):rep(levels).."  command = '"..context.command:gsub("\n","\\n"):gsub("'","\\'").."',")
+    printContexts(levels+1,context)
+    print(("  "):rep(levels).."},")
+  end
+end
 
-for i, input in ipairs(arg) do
-    if input == false then goto skip_input end
-
-    has_input = true
-
-    Split((prefix or "")..input.." \0")
-    local current_list = {}
-    local current_fallback = {}
-
-    for _, word in ipairs(Words) do
-        if word == false then goto continue end
-
-        ::start::
-
-        State.max_index = State.max_index or 0
-        State.current_list_index = State.current_list_index or 0
-        State.max_index = State.max_index > State.current_list_index and State.max_index or State.current_list_index
-
-
-        if State.verb == nil then
-            Words[_] = Language.infinitive(word:lower())
-
-            State.verb = Find_DB_key(_,DB) or DB[Words[_]] or DB[word]
-
-            if State.verb then
-                State.arguments = State.arguments or {}
-                State.arguments_fallback = State.arguments_fallback or {}
-
-                State.arguments[1] = {}
-                State.arguments_fallback[1] = State.arguments_fallback[1] or {}
-
-                State.current_list_index = 1
-
-                current_list = State.arguments[1]
-                current_fallback = State.arguments_fallback[1]
-            end
-            goto continue
+local function printOutput(levels,base,args)
+  for _, context in ipairs(base) do
+    if levels == 0 then
+      local sub_args = {{context.arg,context.command}}
+      printOutput(levels+1,context,sub_args)
+      local commandOutput = ""
+      if context.command:sub(-1,-1) ~= "\r" then
+        for _, arg in ipairs(sub_args) do
+          local command = arg[2]
+          for j = 1, #sub_args, 1 do
+            command = command:gsub("\0{"..j.."}",sub_args[j][1])
+          end
+          commandOutput = command
         end
-
-        if State.noun == nil then
-            State.noun = Find_DB_key(_,State.verb) or State.verb[word]
-
-            if State.noun then
-                if Language.prepositions[current_list[#current_list]] then
-                    table.remove(current_list,#current_list)
-                end
-
-                State.old_noun_word = State.noun_word
-                State.noun_word = word
-
-                State.arguments[2] = {}
-                State.arguments_fallback[2] = State.arguments_fallback[2] or {}
-
-                State.current_list_index = 2
-
-                current_list = State.arguments[2]
-                current_fallback = State.arguments_fallback[2]
-                goto continue
-            end
+        if debugMode then
+          printContexts(0,contexts)
+          io.write("\ncommand = '"..commandOutput..separator:gsub("\n","\\n").."'\n")
+          io.write("\n------------------------------------------------------------------------\n\n")
+        else
+          io.write((commandOutput)..separator)
         end
-
-        if word == "\0" or (Language.list_separators[word] and DB[Language.infinitive(Words[_+1]:lower())]) then
-            if State.noun == nil and (Language.prepositions[State.arguments[1][1]] or Language.pronouns[State.arguments[1][1]]) then
-                table.remove(State.arguments[1],1)
-            end
-
-            local arguments = {}
-
-            -- Allow implicit personal pronoun
-            State.noun = State.noun or State.verb[State.noun_word]
-
-            -- Fill the arguments table
-            for j = 1, State.max_index, 1 do
-                arguments[#arguments+1] = table.concat(State.arguments[j] or {}," ")
-            end
-
-            -- Fix empty 2nd argument
-            if State.current_list_index == 2 and #(State.arguments[2] or {}) == 0 then
-                arguments[2] = arguments[1]
-            end
-
-            -- Fix empty arguments using the fallbacks
-            for j = 2, State.max_index, 1 do
-                if #(State.arguments[j] or {}) == 0 then
-                    arguments[j] = table.concat(State.arguments_fallback[j] or {}," ")
-                end
-            end
-
-            if (#(State.arguments[2] or {}) == 0) and State.old_noun_word ~= State.noun_word and #(State.arguments[1] or {}) ~= 0 then
-                arguments[2] = arguments[1]
-                goto build_cmd
-            end
-
-            -- Fix empty arguments using the next argument
-            for j = 2, State.max_index, 1 do
-                if (#(State.arguments[j] or {}) == 0) and State.old_noun_word ~= State.noun_word and #(State.arguments[j+1] or {}) ~= 0 then
-                    arguments[j] = arguments[j+1]
-                end
-            end
-
-            -- Allow implicit pronouns
-            if (State.noun or State.verb)[0] == nil then
-                local words = {}
-                for _word in tostring(arguments[1]):gmatch("[^ ]*") do
-                    _word = _word == "" and " " or _word
-                    words[#words+1] = _word
-                end
-                local noun_fallback = ""
-                for j = 1, #words, 1 do
-                    noun_fallback = noun_fallback == "" and words[j] or noun_fallback.." "..words[j]
-                    if State.noun[noun_fallback] then
-                        for _ = 1, j, 1 do table.remove(words,1) end
-                        State.noun = State.noun[noun_fallback]
-                        break
-                    end
-                end
-            end
-
-            ::build_cmd::
-
-            local cmd = tostring((State.noun or State.verb)[0])
-            for j = 1, State.max_index, 1 do
-                cmd = cmd:gsub("\0{"..j.."}",arguments[j])
-            end
-            -- Patterns ends with \255, so we not add termination
-            if cmd:sub(-1,-1) ~= "\255" then
-                io.write(cmd..command_termination..(word == "\0" and enclose or ""))
-            else
-                cmd = cmd:sub(1,-2)
-                enclose = cmd:gsub("^.*\2","")
-                cmd = cmd:gsub("\2.*","")
-                io.write(cmd)
-            end
-
-            State.noun = nil
-            State.verb = nil
-
-            if word == "\0" then
-                State = {}
-            end
-
-            goto continue
-        end
-
-        if Language.personal_pronoun[word] then
-            word = State.noun_word
-            goto start
-        end
-
-        if Language.pronouns[word] and State.verb[State.noun_word] and not Language.personal_pronoun[Words[_-1]] then
-            word = State.noun_word or word
-            goto start
-        end
-
-        if State.verb[State.noun_word] == nil and Language.prepositions[Words[_+1]] then
-            goto continue
-        end
-
-        if State.noun then
-            local sub_noun = Find_DB_key(_,State.noun) or State.noun[word]
-
-            if sub_noun then
-                State.noun = sub_noun
-
-                local index = State.current_list_index+1
-
-                State.arguments[index] = {}
-                State.arguments_fallback[index] = State.arguments_fallback[index] or {}
-
-                current_list = State.arguments[index]
-                current_fallback = State.arguments_fallback[index]
-                State.current_list_index = index
-                goto continue
-            end
-
-            if State.noun[Words[_+1]] and (Language.prepositions[word] or Language.pronouns[word]) then
-                goto continue
-            end
-        end
-
-        if State.verb[Words[_+1]] and (Language.prepositions[word] or Language.pronouns[word]) then
-            goto continue
-        end
-
-        current_list[#current_list+1] = word
-        current_fallback[#current_fallback+1] = word
-        ::continue::
+      end
+    else
+      args[#args+1] = {context.arg,context.command}
+      printOutput(levels+1,context,args)
     end
-    ::skip_input::
+  end
 end
 
-if has_input == false then
-    Print_usage()
+local function processTokens()
+  local i = 1
+  while tokens[i] ~= nil do
+    local token = tokens[i]
+
+    if current_context.trigger == nil then
+      local block,struct,next_index = find(i,DB,false)
+      if block then
+        contexts[#contexts+1] = {
+          trigger = block,
+          struct = struct,
+          arg = "",
+          command = (struct or {[0] = ""})[0] or ""
+        }
+        current_context = contexts[#contexts]
+      end
+    else
+      if Language.list_separators[token] or Language.list_separators_symbols[token:sub(-1,-1)] then
+        local block,struct,next_index = find(i+1,DB,false)
+        if block then
+          if #token>1 and Language.list_separators_symbols[token:sub(-1,-1)] then
+            token = token:sub(1,-2)
+            current_context.arg = current_context.arg..(current_context.arg == "" and token or " "..token)
+          end
+          current_context = {}
+        else
+          current_context.arg = current_context.arg..(current_context.arg == "" and token or " "..token)
+        end
+      else
+        if Language.personal_pronoun[token] and #current_context == 0 then
+          for j=#contexts-1, 1, -1 do
+            if contexts[j][1] then
+              local trigger = contexts[j][1].trigger
+              local arg = contexts[j][1].arg
+
+              if current_context.struct[trigger] then
+                local struct = current_context.struct[trigger]
+                current_context[#current_context+1] = {
+                  trigger = trigger ,
+                  struct = struct,
+                  arg = arg,
+                  command = struct[0] or ""
+                }
+                current_context = current_context[#current_context]
+                token = nil
+                break
+              end
+            end
+          end
+        end
+
+        if Language.personal_pronoun[token] and #current_context == 0 and #(contexts[#contexts-1] or {}) > 0 and contexts[#contexts] == current_context then
+          local testTigger = contexts[#contexts-1][1].trigger
+          if current_context.struct[testTigger] then
+            local struct = current_context.struct[testTigger]
+            local arg = nil
+            for j=#contexts-1, 1, -1 do
+              if (contexts[j][1] or {}).arg ~= "" and (contexts[j][1] or {}).arg ~= nil then
+                arg = (contexts[j][1] or {}).arg
+              end
+            end
+            if arg then
+              current_context[#current_context+1] = {
+                trigger = testTigger,
+                struct = struct,
+                arg = arg,
+                command = struct[0] or ""
+              }
+              current_context = current_context[#current_context]
+              if current_context.struct[token] then
+                current_context[#current_context+1] = {
+                  trigger = token,
+                  struct = current_context.struct[token],
+                  arg = "",
+                  command = current_context.struct[token][0] or ""
+                }
+                current_context = current_context[#current_context]
+                token = nil
+              end
+            end
+          end
+        end
+
+        local block,struct,next_index = find(Language.pronouns[token] and i+1 or i,current_context.struct,false)
+        if block then
+          current_context[#current_context+1] = {
+            trigger = block,
+            struct = struct,
+            arg = "",
+            command = (struct or {[0] = ""})[0] or ""
+          }
+          current_context = current_context[#current_context]
+          i = next_index or i
+        else
+          local arg = current_context.arg
+          if token ~= "" then
+            arg = arg..(arg == "" and (token and token or "") or (token and " "..token or ""))
+          end
+          current_context.arg = arg
+        end
+      end
+    end
+    i = i+1
+  end
 end
 
-print()
+local function learn()
+  local datasheet = io.open("datasheet.tsv","r")
+  local db = {}
+  for line in (datasheet):lines("l") do
+      local input = line:gsub("\t.*","")
+      local command = line:gsub("^.*\t","")
+      local tokens = {}
+      for token in input:gmatch("[^%s]+") do
+          if not (Language.pronouns[token] or Language.personal_pronoun[token] or Language.prepositions[token]) then
+              tokens[#tokens+1] = #tokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
+          end
+      end
+
+      local n = 1
+      for i = 1, #tokens, 1 do
+        if command:match(tokens[i]) then
+          command = command:gsub(tokens[i],"\\0{"..tostring(i-n).."}")
+          n = n+1
+          tokens[i] = false
+        else
+          tokens[i] = Language.normalize(tokens[i])
+        end
+      end
+      for i = #tokens, 1, -1 do
+          if tokens[i] == false then
+            table.remove(tokens,i)
+          end
+      end
+      local emptyTable = {}
+      local currentStruct = emptyTable
+      for i, token in ipairs(tokens) do
+        if currentStruct == emptyTable then
+          db[token] = db[token] or {}
+          currentStruct = db[token]
+        else
+          currentStruct[token] = currentStruct[token] or {}
+          currentStruct = currentStruct[token]
+          if i == #tokens then
+            currentStruct[0] = command
+          end
+        end
+      end
+  end
+  local printDB
+  local dbString = "DB = {\n"
+  function printDB (struct,level)
+      local padding = ("  "):rep(level)
+      for key, value in pairs(struct) do
+          if type(value) ~= "string" then
+            dbString = dbString..(padding..'["'..key..'"] = {\n')
+            printDB(value,level+1)
+            dbString = dbString..(padding..'},\n')
+          else
+            dbString = dbString..(padding.."[0] = \""..value:gsub("\"","\\\"").."\",\n")
+          end
+      end
+  end
+
+  printDB(db,1)
+  dbString = dbString.."}"
+
+  print(dbString)
+  os.exit()
+  local f = io.open("database.lua","w+b") or {}
+  f:write(string.dump(load(dbString) or print,true))
+  os.exit()
+end
+
+local compileMode = false
+
+for i = #arg, 1, -1 do
+  local argument = arg[i]
+  if argument == "--help" or argument == "-h" then
+    printUsage()
+  elseif argument:sub(1, 7) == "--lang=" then
+    lang = tostring(argument):sub(8, -1)
+    table.remove(arg,i)
+  elseif argument:sub(1, 11) == "--database=" then
+    database = tostring(argument):sub(12, -1)
+    table.remove(arg,i)
+  elseif argument:sub(1, 9) == "--prefix=" then
+    prefix = tostring(argument):sub(10, -1)
+    table.remove(arg,i)
+  elseif argument == "--shell-output" then
+    separator = ";\n"
+    shellOutput = true
+    table.remove(arg,i)
+  elseif argument == "--compile" or argument == "-c" then
+    compileMode = true
+  elseif argument == "--verbose" or argument == "-v" then
+    separator = ";\n"
+    warn "@on"
+    table.remove(arg,i)
+  elseif argument == "--debug" or argument == "-d" then
+    debugMode = true
+    table.remove(arg,i)
+  end
+end
+
+if prefix and prefix:gsub("[%s]","") ~= "" then
+  table.insert(arg,prefix)
+end
+
+if #arg == 0 then
+  warn "No inputs, entering in interactive mode..."
+  interactive = true
+  arg[#arg+1] = ""
+end
+
+if lang == nil then
+  if io.open("languages/" .. (lang or "") .. ".lua","r") == nil then
+    warn "Missing --lang= parameter"
+    lang = os.getenv("LANG"):gsub("%.UTF%-8$","")
+    if io.open("languages/" .. (lang or "") .. ".lua","r") == nil then
+      lang = nil
+      print "FATAL: Missing --lang= parameter and env LANG doesn't have a compatible language value"
+    end
+  end
+end
+
+if database == nil then
+  warn "Missing --database= parameter, fallback to idris-shell"
+  database = "idris-shell"
+  if io.open("databases/" .. (lang or "") .. "/" .. database .. ".lua","r") == nil then
+    database = nil
+    print "FATAL: Missing --database= parameter and idris-shell was not found"
+  end
+end
+
+if lang == nil or database == nil then
+  print ""
+  printUsage()
+end
+
+require("languages." .. lang)
+require("databases." .. lang .. "." .. database)
+
+if compileMode then
+  learn()
+end
+
+if interactive then
+  while true do
+    io.write("> ")
+    tokens = split(io.read("l"))
+    contexts = {}
+    current_context = {}
+
+    processTokens()
+    printOutput(0,contexts)
+  end
+else
+  for _, input in ipairs(arg) do
+    tokens = split(input)
+    contexts = {}
+    current_context = {}
+
+    processTokens()
+    printOutput(0,contexts)
+  end
+end
+
