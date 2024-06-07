@@ -79,14 +79,14 @@ local function find(index,base,skip_recursive)
   return block,struct,next_index
 end
 
-local function printContexts(levels,base)
+local function printContexts(levels,base,_)
   for _,context in ipairs(base) do
-    print(("  "):rep(levels).."local db_slice = {")
+    print(("  "):rep(levels)..(levels == 0 and "local db_slice_".._.." = {" or "{"))
     print(("  "):rep(levels).."  trigger = '"..context.trigger:gsub("\n","\\n"):gsub("'","\\'").."',")
     print(("  "):rep(levels).."  arg = '"..context.arg:gsub("\n","\\n"):gsub("'","\\'").."',")
     print(("  "):rep(levels).."  command = '"..context.command:gsub("\n","\\n"):gsub("'","\\'").."',")
     printContexts(levels+1,context)
-    print(("  "):rep(levels).."},")
+    print(("  "):rep(levels)..(levels == 0 and "}" or "},"))
   end
 end
 
@@ -105,8 +105,8 @@ local function printOutput(levels,base,args)
           commandOutput = command
         end
         if debugMode then
-          printContexts(0,contexts)
-          io.write("\ncommand = '"..commandOutput..separator:gsub("\n","\\n").."'\n")
+          printContexts(0,contexts,_)
+          io.write("\nlocal command_".._.." = '"..commandOutput:gsub("'","\\'")..separator:gsub("\n","\\n"):gsub("'","\\'").."'\n")
           io.write("\n------------------------------------------------------------------------\n\n")
         else
           io.write((commandOutput)..separator)
@@ -215,6 +215,9 @@ local function processTokens()
         else
           local arg = current_context.arg
           if token ~= "" then
+            if shellOutput then
+              token = token:gsub("'","'\"'\"'")
+            end
             arg = arg..(arg == "" and (token and token or "") or (token and " "..token or ""))
           end
           current_context.arg = arg
@@ -386,4 +389,5 @@ else
     printOutput(0,contexts)
   end
 end
+
 
