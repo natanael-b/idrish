@@ -5,7 +5,7 @@ Idris é uma ferramenta para converter instruções em linguagem natural em scri
 Clone o repositório:
 
 ```bash
-git clone https://github.com/seu-usuario/idris.git
+git clone https://github.com/natanael-b/idris.git
 cd idris
 ```
 
