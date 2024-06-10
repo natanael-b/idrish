@@ -1,4 +1,3 @@
-#!/bin/lua5.4
 local function printUsage()
   print([[
 
@@ -148,7 +147,9 @@ local function processTokens()
           current_context.arg = current_context.arg..(current_context.arg == "" and token or " "..token)
         end
       else
-        if Language.personal_pronoun[token] and #current_context == 0 then
+        
+        local isPersonalPronoun = (Language.personal_pronoun[token] or Language.personal_pronoun[token:sub(1,-2)]) or false
+        if isPersonalPronoun and #current_context == 0 then
           for j=#contexts-1, 1, -1 do
             if contexts[j][1] then
               local trigger = contexts[j][1].trigger
@@ -170,7 +171,7 @@ local function processTokens()
           end
         end
 
-        if Language.personal_pronoun[token] and #current_context == 0 and #(contexts[#contexts-1] or {}) > 0 and contexts[#contexts] == current_context then
+        if isPersonalPronoun and #current_context == 0 and #(contexts[#contexts-1] or {}) > 0 and contexts[#contexts] == current_context then
           local testTigger = contexts[#contexts-1][1].trigger
           if current_context.struct[testTigger] then
             local struct = current_context.struct[testTigger]
@@ -389,5 +390,4 @@ else
     printOutput(0,contexts)
   end
 end
-
 
