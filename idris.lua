@@ -78,18 +78,19 @@ local function find(index,base,skip_recursive)
   return block,struct,next_index
 end
 
-local function printContexts(levels,base,_)
+local function printContexts(levels,base)
   for _,context in ipairs(base) do
     print(("  "):rep(levels)..(levels == 0 and "local db_slice_".._.." = {" or "{"))
     print(("  "):rep(levels).."  trigger = '"..context.trigger:gsub("\n","\\n"):gsub("'","\\'").."',")
     print(("  "):rep(levels).."  arg = '"..context.arg:gsub("\n","\\n"):gsub("'","\\'").."',")
     print(("  "):rep(levels).."  command = '"..context.command:gsub("\n","\\n"):gsub("'","\\'").."',")
     printContexts(levels+1,context)
-    print(("  "):rep(levels)..(levels == 0 and "}" or "},"))
+    print(("  "):rep(levels)..(levels == 0 and "}\n" or "},"))
   end
 end
 
-local function printOutput(levels,base,args)
+local function printOutput(levels,base,args,contextPrinted)
+  contextPrinted = contextPrinted or false
   for _, context in ipairs(base) do
     if levels == 0 then
       local sub_args = {{context.arg,context.command}}
@@ -104,16 +105,23 @@ local function printOutput(levels,base,args)
           commandOutput = command
         end
         if debugMode then
-          printContexts(0,contexts,_)
-          io.write("\nlocal command_".._.." = '"..commandOutput:gsub("'","\\'")..separator:gsub("\n","\\n"):gsub("'","\\'").."'\n")
-          io.write("\n------------------------------------------------------------------------\n\n")
+          if contextPrinted == false then
+            io.write("\n")
+            printContexts(0,contexts,_)
+            io.write("------------------------------------------------------------------------\n\n")
+            contextPrinted = true
+          end
+          --printContexts(0,contexts,_)
+          io.write("local command_".._.." = '"..commandOutput:gsub("'","\\'")..separator:gsub("\n","\\n"):gsub("'","\\'").."'\n")
+          io.write((base == contexts and _ == #contexts) and "\n" or "")
+          --return
         else
           io.write((commandOutput)..separator)
         end
       end
     else
-      args[#args+1] = {context.arg,context.command}
-      printOutput(levels+1,context,args)
+      args[#args+1] = {context.arg,context.command,contextPrinted}
+      printOutput(levels+1,context,args,contextPrinted)
     end
   end
 end
@@ -237,7 +245,7 @@ local function processTokens()
         else
           local arg = current_context.arg
           if token ~= "" then
-            if shellOutput then
+            if shellOutput and token then
               token = token:gsub("'","'\"'\"'")
             end
             arg = arg..(arg == "" and (token and token or "") or (token and " "..token or ""))
