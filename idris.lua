@@ -147,7 +147,7 @@ local function processTokens()
           current_context.arg = current_context.arg..(current_context.arg == "" and token or " "..token)
         end
       else
-        
+
         local isPersonalPronoun = (Language.personal_pronoun[token] or Language.personal_pronoun[token:sub(1,-2)]) or false
         if isPersonalPronoun and #current_context == 0 then
           for j=#contexts-1, 1, -1 do
@@ -165,6 +165,27 @@ local function processTokens()
                 }
                 current_context = current_context[#current_context]
                 token = nil
+                break
+              end
+            end
+          end
+
+          if #current_context == 0 then
+            local splited = split(contexts[#contexts].arg)
+            for j, word in ipairs(splited) do
+              word = Language.normalize(word)
+              if current_context.struct[word] then
+                current_context[#current_context+1] = {
+                  trigger = word ,
+                  struct = current_context.struct[word],
+                  arg = "",
+                  command = current_context.struct[word][0] or ""
+                }
+                current_context = current_context[#current_context]
+                for n = j+1, #splited, 1 do
+                  current_context.arg = current_context.arg..splited[n]..(n == #splited and "" or " ")
+                end
+                contexts[#contexts].arg = ""
                 break
               end
             end
@@ -390,4 +411,3 @@ else
     printOutput(0,contexts)
   end
 end
-
