@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if ! type idrish_prompt &> /dev/null; then
+    # Declare the function
+    idrish_prompt() {
+        echo "$(whoami)@$(hostname):"$(echo -n "$PWD" | sed "s|^${HOME}|~|g")"$ "
+    }
+fi
+
+while true; do 
+  read -p "$(idrish_prompt)" input
+  eval $(lua5.4 idris.lua --shell-output "${input}")
+done

@@ -1,0 +1,6 @@
+CRIE ARQUIVO x	touch 'x'
+INSIRA no ARQUIVO x a FRASE y	echo 'y' >> 'x'
+ESCREVA x	echo 'x'
+APAGUE ARQUIVO x	rm 'x'
+APAGUE DIRETÓRIO x	rm -rf 'x'
+APAGUE PASTA x	rm -rf 'x'

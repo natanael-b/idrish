@@ -1,71 +1,54 @@
-<p align="center">
-  <a href="https://github.com/natanael-b/idris/fork">
-    <img height=26 alt="Crie um fork no github" src="https://img.shields.io/badge/Fork--Me-H?style=social&logo=github">
-  </a>
-  <img  height=26 alt="GitHub Repo stars" src="https://img.shields.io/github/stars/natanael-b/idris?style=social">
-</p>
+# 📝 Idris v1.0
+Idris é uma ferramenta para converter instruções em linguagem natural em scripts executáveis
 
-Modelo de processamento de linguagem natural escrito em `Lua` que gera comandos de terminal com base na entrada do usuário. Ele compreende a entrada do usuário, identificar verbos, substantivos e outros elementos da linguagem e, em seguida, gerar comandos executáveis com base no banco de dados de comandos fornecido. Esse projeto não utiliza LLMs ou qualquer algoritmo de aprendizagem de máquina
-
-# Como se usa?
-
-Para usar este script, é simples, passe os parâmetros:
-
-- `--lang=<idioma>` Que é o idioma a ser usado para o processamento de linguagem natural.
-- `--database=<banco-de-dados>` O banco de dados ou modelo de linguagem a ser usado para o processamento.
-- `--prefix=<prefixo>` Forneça um prefixo a ser adicionado ao texto de entrada, geralmente um verbo como "Pesquise" ou um comando inteiro seguido por `,` (opcional)
-
-Exemplo de input:
+## 📥 Instalação
+Clone o repositório:
 
 ```bash
-lua5.4 idris.lua --lang=pt_BR --database=demonstration \
-  'crie o arquivo teste.txt, coloque nele a frase Olá Mundo!, abra no kate e mova ele para /tmp'
+git clone https://github.com/natanael-b/idris.git
+cd idris
 ```
 
-Exemplo de saída:
+> Idris depende de Lua para funcionar
+
+## 🚀 Uso
+#### 🖋️ Sintaxe
 
 ```bash
-echo -n > 'teste.txt'
-echo -n 'Olá Mundo!' >> 'teste.txt'
-'kate' 'teste.txt'
-mv 'teste.txt' '/tmp'
+lua5.4 idris.lua --lang=<código do idioma> --database=<banco de dados com comandos> [--prefix=<prefixo>] [--shell-output] [--verbose] [--help] 'entrada 1' 'entrada 2' ...
 ```
 
-# Funcionamento
+#### ⚙️ Opções
 
-A entrada é dividida em palavras individuais (nesse contexto , é considerada uma palavra), depois, palavra por palavra são identificados verbos, substantivos e outros elementos da linguagem e por fim, o `Idris` busca cria modelos de comando usando os verbos e substantivos identificados e substitui espaços reservados nos modelos por palavras correspondentes da entrada. Feito isso o comando é exibido
+* `--lang=<código do idioma>`: Especifica o idioma a ser usado.
+* `--database=<banco de dados>: Define a fonte dos comandos, se não especificado usa o ´idris-shell`
+* `--prefix=<prefixo>`: Adiciona um prefixo opcional aos comandos.
+* `--shell-output`: Formata a saída para uso em scripts de shell.
+* `--interactive`: Entra no modo interativo.
+* `--compile`, `-c`: Gera um banco de dados `database.lua` a partir do arquivo `datasheet.tsv`.
+* `--verbose`, `-v`: Ativa a saída verbosa.
+* `--debug`, `-d`: Imprime a localização do banco de dados de cada comando.
+* `--help`, `-h`: Exibe a mensagem de ajuda.
 
-# Configuração
+### 📌 Exemplos
 
-A configuração é feita através de bancos de dados na pastas `databases`, esses bancos de dados nada mais são que scripts `Lua` que definem uma tabela global chamada `DB` seguindo o padrão:
-
-```lua
-["verbo"] = {
-  [0] = "Resposta para caso um substantivo conhecido não for especificado",
-  ["substantivo"] = {
-    [0] = "Resposta para caso a entrada tenha substantivo sem especificador",
-    ["especificador"] = {
-      [0] = "Resposta para caso a entrada tenha substantivo com especificador",
-    }
-  }
-}
+#### Básico
+```bash
+lua5.4 idris.lua 'crie um arquivo test.txt e insira a frase Hello World nele!'
 ```
 
-Use `\0{1}` para obter o valor após o verbo, `\0{1}` para o valor após o substantivo e `\0{3}` para o valor após o especificador
+#### Modo interativo
 
-# Dependências
+Para entrar no modo interativo, execute o comando nenhuma entrada:
 
-Este script depende apenas do interpretador padrão da linguagem `Lua`, na versão 5.4 ou posterior, versões anteriores podem funcionar mas não foram testadas:
+```
+lua5.4 idris.lua --lang=pt_BR --database=demonstration
+```
 
-# Licença
-Este script é fornecido sob uma licença de código aberto. Você pode encontrar os detalhes da licença no arquivo LICENSE incluído neste projeto.
+# 🤝 Contribuição
 
-# Feedback e Contribuições
-Sinta-se à vontade para fornecer feedback, relatar problemas ou contribuir para este projeto abrindo problemas ou solicitações de pull no GitHub. Suas contribuições são bem-vindas e apreciadas.
+Contribuições são bem-vindas! Sinta-se à vontade para abrir uma issue ou um pull request.
 
-# TODO
+# 📜 Licença
 
-- [x] Mais de 3 níveis de especificação
-- [ ] Gerar bancos de dados a partir de listas de exemplo
-
-
+Este projeto está licenciado sob a Licença MIT. Veja o arquivo LICENSE para mais detalhes.
