@@ -1,5 +1,21 @@
 #!/bin/bash
 
+HERE="$(dirname "$(readlink -f "${0}")")"
+ORIGINAL_IFS="${IFS}"
+
+IFS=':' read -ra data_dirs <<< "${XDG_DATA_DIRS}"
+for dir in "${data_dirs[@]}"; do
+  extensions_dir="$dir/idrish/extensions"
+  if [[ -d "$extensions_dir" ]]; then
+    for script in "$extensions_dir"/*; do
+      if [[ -f "${script}" ]]; then
+        source "${script}"
+      fi
+    done
+  fi
+done
+IFS="${ORIGINAL_IFS}"
+
 if ! type idrish_prompt &> /dev/null; then
     # Declare the function
     idrish_prompt() {
@@ -9,5 +25,5 @@ fi
 
 while true; do 
   read -p "$(idrish_prompt)" input
-  eval $(lua5.4 idris.lua --shell-output "${input}")
+  eval $(lua5.4 "${HERE}/idris.lua" --shell-output "${input}")
 done
