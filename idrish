@@ -40,8 +40,13 @@ if ! type idrish_history_suffix &> /dev/null; then
     }
 fi
 
+lua_language=${LANG}
+[ "${lua_language}" = "C.UTF8" ] && {
+  lua_language="pt_BR"
+}
+
 while true; do 
   read -p "$(idrish_prompt)" input
   INPUT_HISTORY="${INPUT_HISTORY}"$'\n'$(idrish_history_prefix)"${input}$(idrish_history_suffix)"$'\n'
-  eval $(lua5.4 "${HERE}/idris.lua" --shell-output "${input}") &> /dev/null
+  eval $(lua5.4 "${HERE}/idris.lua" --lang="${lua_language}" --shell-output "${input}") &> /dev/null
 done
