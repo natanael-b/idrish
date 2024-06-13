@@ -5,7 +5,7 @@ ORIGINAL_IFS="${IFS}"
 
 INPUT_HISTORY=""
 
-IFS=':' read -ra data_dirs <<< "${XDG_DATA_DIRS}"
+IFS=':' read -ra data_dirs <<< "${HERE}/resources/:${XDG_DATA_DIRS}"
 for dir in "${data_dirs[@]}"; do
   extensions_dir="$dir/idrish/extensions"
   if [[ -d "$extensions_dir" ]]; then
@@ -21,7 +21,7 @@ IFS="${ORIGINAL_IFS}"
 # Check for prompt
 if ! type idrish_prompt &> /dev/null; then
     idrish_prompt() {
-        echo "$(whoami)@$(hostname):"$(echo -n "$PWD" | sed "s|^${HOME}|~|g")"$ "
+        echo "$(whoami)@$(hostname):"$(echo -n "$PWD" | sed "s|^${HOME}|~|g")"> "
     }
 fi
 
