@@ -3,6 +3,8 @@
 HERE="$(dirname "$(readlink -f "${0}")")"
 ORIGINAL_IFS="${IFS}"
 
+INPUT_HISTORY=""
+
 IFS=':' read -ra data_dirs <<< "${XDG_DATA_DIRS}"
 for dir in "${data_dirs[@]}"; do
   extensions_dir="$dir/idrish/extensions"
@@ -16,14 +18,30 @@ for dir in "${data_dirs[@]}"; do
 done
 IFS="${ORIGINAL_IFS}"
 
+# Check for prompt
 if ! type idrish_prompt &> /dev/null; then
-    # Declare the function
     idrish_prompt() {
+        echo "$(whoami)@$(hostname):"$(echo -n "$PWD" | sed "s|^${HOME}|~|g")"$ "
+    }
+fi
+
+# Check for history prefix
+if ! type idrish_history_prefix &> /dev/null; then
+    # Declare the function
+    idrish_history_prefix() {
+        echo "> "
+    }
+fi
+
+# Check for history suffix
+if ! type idrish_history_suffix &> /dev/null; then
+    idrish_history_suffix() {
         echo "$(whoami)@$(hostname):"$(echo -n "$PWD" | sed "s|^${HOME}|~|g")"$ "
     }
 fi
 
 while true; do 
   read -p "$(idrish_prompt)" input
-  eval $(lua5.4 "${HERE}/idris.lua" --shell-output "${input}")
+  INPUT_HISTORY="${INPUT_HISTORY}"$'\n'$(idrish_history_prefix)"${input}$(idrish_history_suffix)"$'\n'
+  eval $(lua5.4 "${HERE}/idris.lua" --shell-output "${input}") &> /dev/null
 done
