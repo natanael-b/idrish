@@ -12,7 +12,13 @@ cd idris
 > Idris depende de Lua para funcionar
 
 ## 🚀 Uso
-#### 🖋️ Sintaxe
+
+1. No menu de apps procure por Idrish
+2. Digite os prompts e pressione Enter
+
+![](resources/idrish/print.png)
+
+#### 🖋️ Sintaxe avançada 
 
 ```bash
 lua5.4 idris.lua --lang=<código do idioma> --database=<banco de dados com comandos> [--prefix=<prefixo>] [--shell-output] [--verbose] [--help] 'entrada 1' 'entrada 2' ...
