@@ -117,10 +117,10 @@ Language = {
       end
       for _, left in ipairs(vogals) do
         for _, right in ipairs(vogals) do
-          new_word = new_word:gsub(left.."s"..right,left.."z"..right)
+          new_word = new_word:gsub(left.."s"..right,left.."z"..right):gsub(left.."ch"..right,left.."x"..right)
         end
       end
-      new_word = new_word:gsub("ce","sse"):gsub("ci","ssi"):gsub("de$","di"):gsub("te$","ti")
+      new_word = new_word:gsub("ce","sse"):gsub("ci","ssi"):gsub("de$","di"):gsub("te$","ti"):gsub("^h",""):gsub("k","c"):gsub("w","v"):gsub("oo","u")
       return new_word
     end
   ,
