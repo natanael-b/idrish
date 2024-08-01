@@ -19,6 +19,7 @@ local function printUsage()
     --shell-output           =>  Formats the output for shell script usage.
     --interactive            =>  Entra no modo iterativo
     --compile, -c            =>  Generate a database from datasheet.tsv file
+    --update-idri-shell, -u  =>  Update idri-shell database (implies in --compile)
     --verbose, -v            =>  Activates verbose output.
     --debug, -d              =>  Prints de database location of each command
     --help, -h               =>  Displays this help message.
@@ -33,7 +34,7 @@ local function printUsage()
   os.exit(0)
 end
 
-local lang,database,prefix,separator,interactive,shellOutput,debugMode = nil,nil,"","\n",false,false,false
+local lang,database,prefix,separator,interactive,shellOutput,debugMode,updadeIdrish = nil,nil,"","\n",false,false,false,false
 
 local tokens,contexts,current_context = {},{},{}
 
@@ -276,8 +277,15 @@ local function learn()
   local datasheet = io.open("datasheet.tsv","r")
   local db = {}
   for line in (datasheet):lines("l") do
+      line = line:gsub("\r","")
       local input = line:gsub("\t.*","")
       local command = line:gsub("^.*\t","")
+
+      if input:sub(1,1) and input:sub(-1,-1) then
+        input = input:sub(2,-2)
+        command = command:sub(2,-2)
+      end
+
       local tokens = {}
       for token in input:gmatch("[^%s]+") do
           if not (Language.pronouns[token] or Language.personal_pronoun[token] or Language.prepositions[token]) then
@@ -310,7 +318,7 @@ local function learn()
           currentStruct[token] = currentStruct[token] or {}
           currentStruct = currentStruct[token]
           if i == #tokens then
-            currentStruct[0] = command
+            currentStruct[0] = command:gsub("\n","\\n")
           end
         end
       end
@@ -334,10 +342,9 @@ local function learn()
   dbString = dbString.."}"
 
   print(dbString)
-  os.exit()
-  local f = io.open("database.lua","w+b") or {}
-  f:write(string.dump(load(dbString) or print,true))
-  os.exit()
+
+  local f = io.open(updadeIdrish and "databases/"..lang.."/idris-shell.lua" or "database.lua","w+b") or {}
+  f:write(updadeIdrish and dbString or string.dump(load(dbString) or print,true))
 end
 
 local compileMode = false
@@ -361,6 +368,9 @@ for i = #arg, 1, -1 do
     table.remove(arg,i)
   elseif argument == "--compile" or argument == "-c" then
     compileMode = true
+  elseif argument == "--update-idri-shell" or argument == "-u" then
+    compileMode = true
+    updadeIdrish = true
   elseif argument == "--verbose" or argument == "-v" then
     separator = ";\n"
     warn "@on"
