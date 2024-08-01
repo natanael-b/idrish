@@ -200,10 +200,24 @@ local function processTokens()
           end
         end
 
+        local isPronoun = (Language.pronouns[token] or Language.pronouns[token:sub(1,-2)]) or false
+        if #current_context == 0 and isPronoun then
+          if current_context.struct[token] then
+            current_context[#current_context+1] = {
+              trigger = token,
+              struct = current_context.struct[token],
+              arg = "",
+              command = current_context.struct[token][0] or ""
+            }
+            current_context = current_context[#current_context]
+            token = nil
+          end
+        end
+
         if isPersonalPronoun and #current_context == 0 and #(contexts[#contexts-1] or {}) > 0 and contexts[#contexts] == current_context then
-          local testTigger = contexts[#contexts-1][1].trigger
-          if current_context.struct[testTigger] then
-            local struct = current_context.struct[testTigger]
+          local testTrigger = contexts[#contexts-1][1].trigger
+          if current_context.struct[testTrigger] then
+            local struct = current_context.struct[testTrigger]
             local arg = nil
             for j=#contexts-1, 1, -1 do
               if (contexts[j][1] or {}).arg ~= "" and (contexts[j][1] or {}).arg ~= nil then
@@ -212,7 +226,7 @@ local function processTokens()
             end
             if arg then
               current_context[#current_context+1] = {
-                trigger = testTigger,
+                trigger = testTrigger,
                 struct = struct,
                 arg = arg,
                 command = struct[0] or ""
