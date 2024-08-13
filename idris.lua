@@ -342,23 +342,29 @@ local function learn()
         currentStruct = currentStruct[token]
         if i == #tokens then
           currentStruct[0] = command:gsub("\n","\\n")
+          currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
         end
       end
     end
   end
 
-  local printDB
   local dbString = "DB = {\n"
-  function printDB (struct,level)
-      local padding = ("  "):rep(level)
-      for key, value in pairs(struct) do
-          if type(value) ~= "string" then
-            dbString = dbString..(padding..'["'..key..'"] = {\n')
-            printDB(value,level+1)
-            dbString = dbString..(padding..'},\n')
-          else
-            dbString = dbString..(padding.."[0] = \""..value:gsub("\"","\\\"").."\",\n")
-          end
+  local function printDB (struct,level)
+      if type(struct) == "table" then
+        local padding = ("  "):rep(level)
+        for key, value in pairs(struct) do
+            if type(value) ~= "string" then
+              if type(key) == "number" then
+                dbString = dbString..(padding..'['..key..'] = '..tostring(value)..',\n')
+              else
+                dbString = dbString..(padding..'["'..key..'"] = {\n')
+                printDB(value,level+1)
+                dbString = dbString..(padding..'},\n')
+              end
+            else
+              dbString = dbString..(padding.."[0] = \""..value:gsub("\"","\\\"").."\",\n")
+            end
+        end
       end
   end
 
