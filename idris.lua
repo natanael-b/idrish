@@ -276,53 +276,77 @@ end
 local function learn()
   local datasheet = io.open("datasheet.tsv","r")
   local db = {}
+  local rows = {}
+  local tmpLine = ""
+  local lineIsOk = false
+
   for line in (datasheet):lines("l") do
-      line = line:gsub("\r","")
-      local input = line:gsub("\t.*","")
-      local command = line:gsub("^.*\t","")
+      tmpLine = tmpLine..line
+      local fields = {}
+      for field in  tmpLine:gsub("\r",""):gmatch("[^\t]*")  do
+        local doubleQuotesCount = 0
+        for _ in field:gmatch('"') do
+            doubleQuotesCount = doubleQuotesCount+1
+        end
 
-      if input:sub(1,1) and input:sub(-1,-1) then
-        input = input:sub(2,-2)
-        command = command:sub(2,-2)
-      end
+        lineIsOk = doubleQuotesCount%2 == 0
 
-      local tokens = {}
-      for token in input:gmatch("[^%s]+") do
-          if not (Language.pronouns[token] or Language.personal_pronoun[token] or Language.prepositions[token]) then
-              tokens[#tokens+1] = #tokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
+        if lineIsOk then
+          if field:sub(1,1) == '"' and field:sub(-1,-1) == '"' then
+            field = field:sub(2,-2)
           end
-      end
-
-      local n = 1
-      for i = 1, #tokens, 1 do
-        if command:match(tokens[i]) then
-          command = command:gsub(tokens[i],"\\0{"..tostring(i-n).."}")
-          n = n+1
-          tokens[i] = false
-        else
-          tokens[i] = Language.normalize(tokens[i])
+          fields[#fields+1] = field
+          tmpLine = ""
         end
       end
-      for i = #tokens, 1, -1 do
-          if tokens[i] == false then
-            table.remove(tokens,i)
-          end
-      end
-      local emptyTable = {}
-      local currentStruct = emptyTable
-      for i, token in ipairs(tokens) do
-        if currentStruct == emptyTable then
-          db[token] = db[token] or {}
-          currentStruct = db[token]
-        else
-          currentStruct[token] = currentStruct[token] or {}
-          currentStruct = currentStruct[token]
-          if i == #tokens then
-            currentStruct[0] = command:gsub("\n","\\n")
-          end
-        end
+
+      if lineIsOk then
+        rows[#rows+1] = fields
       end
   end
+
+  for _,row in ipairs(rows) do
+    local input = row[1]
+    local command = row[2]
+
+    local tokens = {}
+    for token in input:gmatch("[^%s]+") do
+        if not (Language.pronouns[token] or Language.personal_pronoun[token] or Language.prepositions[token]) then
+            tokens[#tokens+1] = #tokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
+        end
+    end
+
+    local n = 1
+    for i = 1, #tokens, 1 do
+      if command:match(tokens[i]) then
+        command = command:gsub(tokens[i],"\\0{"..tostring(i-n).."}")
+        n = n+1
+        tokens[i] = false
+      else
+        tokens[i] = Language.normalize(tokens[i])
+      end
+    end
+    for i = #tokens, 1, -1 do
+        if tokens[i] == false then
+          table.remove(tokens,i)
+        end
+    end
+    local emptyTable = {}
+    local currentStruct = emptyTable
+    for i, token in ipairs(tokens) do
+      if currentStruct == emptyTable then
+        db[token] = db[token] or {}
+        currentStruct = db[token]
+      else
+        currentStruct[token] = currentStruct[token] or {}
+        currentStruct = currentStruct[token]
+        if i == #tokens then
+          currentStruct[0] = command:gsub("\n","\\n")
+        end
+      end
+    end
+  end
+
   local printDB
   local dbString = "DB = {\n"
   function printDB (struct,level)
