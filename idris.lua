@@ -173,6 +173,16 @@ local function processTokens()
                   command = struct[0] or ""
                 }
                 current_context = current_context[#current_context]
+
+                if current_context.struct[1] then
+                  local command = current_context.command
+                  current_context = contexts[#contexts]
+                  current_context.command = command..separator..current_context.command
+                  for l=#current_context, 1, -1 do
+                    table.remove(current_context,l)
+                  end
+                end
+  
                 token = nil
                 break
               end
@@ -194,6 +204,16 @@ local function processTokens()
                 for n = j+1, #splited, 1 do
                   current_context.arg = current_context.arg..splited[n]..(n == #splited and "" or " ")
                 end
+
+                if current_context.struct[1] then
+                  local command = current_context.command
+                  current_context = contexts[#contexts]
+                  current_context.command = command..separator..current_context.command
+                  for j=#current_context, 1, -1 do
+                    table.remove(current_context,j)
+                  end
+                end
+  
                 contexts[#contexts].arg = ""
                 break
               end
@@ -201,7 +221,7 @@ local function processTokens()
           end
         end
 
-        local isPronoun = (Language.pronouns[token] or Language.pronouns[token:sub(1,-2)]) or false
+        local isPronoun = (Language.pronouns[(token or "")] or Language.pronouns[(token or ""):sub(1,-2)]) or false
         if #current_context == 0 and isPronoun then
           if current_context.struct[token] then
             current_context[#current_context+1] = {
@@ -211,6 +231,16 @@ local function processTokens()
               command = current_context.struct[token][0] or ""
             }
             current_context = current_context[#current_context]
+
+            if current_context.struct[1] then
+              local command = current_context.command
+              current_context = contexts[#contexts]
+              current_context.command = command..separator..current_context.command
+              for j=#current_context, 1, -1 do
+                table.remove(current_context,j)
+              end
+            end
+
             token = nil
           end
         end
@@ -233,6 +263,16 @@ local function processTokens()
                 command = struct[0] or ""
               }
               current_context = current_context[#current_context]
+
+              if current_context.struct[1] then
+                local command = current_context.command
+                current_context = contexts[#contexts]
+                current_context.command = command..separator..current_context.command
+                for j=#current_context, 1, -1 do
+                  table.remove(current_context,j)
+                end
+              end
+
               if current_context.struct[token] then
                 current_context[#current_context+1] = {
                   trigger = token,
@@ -256,6 +296,16 @@ local function processTokens()
             command = (struct or {[0] = ""})[0] or ""
           }
           current_context = current_context[#current_context]
+
+          if current_context.struct[1] then
+            local command = current_context.command
+            current_context = contexts[#contexts]
+            current_context.command = command..separator..current_context.command
+            for j=#current_context, 1, -1 do
+              table.remove(current_context,j)
+            end
+          end
+
           i = next_index or i
         else
           local arg = current_context.arg
