@@ -1,4 +1,4 @@
-# 📝 Idris v1.1
+# 📝 Idris - 1.1 [![CI](https://github.com/natanael-b/idrish/actions/workflows/blank.yml/badge.svg)](https://github.com/natanael-b/idrish/actions/workflows/blank.yml)
 
 <p align=center>
 
