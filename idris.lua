@@ -387,6 +387,8 @@ local function learn()
       if currentStruct == emptyTable then
         db[token] = db[token] or {}
         currentStruct = db[token]
+        currentStruct[0] = command:gsub("\n","\\n")
+        currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
       else
         currentStruct[token] = currentStruct[token] or {}
         currentStruct = currentStruct[token]
