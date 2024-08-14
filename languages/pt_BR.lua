@@ -121,6 +121,10 @@ Language = {
         end
       end
       new_word = new_word:gsub("ce","sse"):gsub("ci","ssi"):gsub("de$","di"):gsub("te$","ti"):gsub("^h",""):gsub("k","c"):gsub("w","v"):gsub("oo","u")
+
+      for _, vogal in ipairs(vogals) do
+        new_word = new_word:gsub("r"..vogal.."s$","r"):gsub("z"..vogal.."z$",vogal)
+      end
       return new_word
     end
   ,
