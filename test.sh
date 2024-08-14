@@ -2,13 +2,13 @@
 
 which lua5.4 || sudo apt install lua5.4 > /dev/null 2>&1
 
-input='crie o arquivo teste.txt, coloque nele a frase Olá Mundo!, abra no kate e mova ele para /tmp'
+lua5.4 idris.lua --lang=pt_BR -u
 
-hash="16a282a5576a2cd962eea033ce4da66346a288380ee53a548862ae96469b50bc"
+input="crie um arquivo test.txt e insira a frase Hello World nele!"
 
-hash_input=$(lua5.4 idris.lua --lang=pt_BR --database=demonstration "${input}" | sha256sum | cut -d' ' -f1)
+output=$(lua5.4 idris.lua  --lang=pt_BR "${input}" --shell-output | tr -d $'\n')
 
-[ "${hash}" = "${hash_input}" ] && {
+[ "${output}" = "touch 'test.txt';echo 'Hello World' >> 'test.txt';" ] && {
   exit 0
 }
 
