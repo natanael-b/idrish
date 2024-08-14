@@ -19,6 +19,7 @@ local function printUsage()
     --shell-output           =>  Formats the output for shell script usage.
     --interactive            =>  Entra no modo iterativo
     --compile, -c            =>  Generate a database from datasheet.tsv file
+    --update-idri-shell, -u  =>  Update idri-shell database (implies in --compile)
     --verbose, -v            =>  Activates verbose output.
     --debug, -d              =>  Prints de database location of each command
     --help, -h               =>  Displays this help message.
@@ -33,7 +34,8 @@ local function printUsage()
   os.exit(0)
 end
 
-local lang,database,prefix,separator,interactive,shellOutput,debugMode = nil,nil,"","\n",false,false,false
+Language = {}
+local lang,database,prefix,separator,interactive,shellOutput,debugMode,updadeIdrish = nil,nil,"","\n",false,false,false,false
 
 local tokens,contexts,current_context = {},{},{}
 
@@ -107,7 +109,7 @@ local function printOutput(levels,base,args,contextPrinted)
         if debugMode then
           if contextPrinted == false then
             io.write("\n")
-            printContexts(0,contexts,_)
+            printContexts(0,contexts)
             io.write("------------------------------------------------------------------------\n\n")
             contextPrinted = true
           end
@@ -126,22 +128,39 @@ local function printOutput(levels,base,args,contextPrinted)
   end
 end
 
+local function goDeepLevel(control,trigger,struct,arg,subLevel)
+  struct = struct or {}
+  local contextReference = subLevel and current_context or contexts
+  if control then
+    contextReference[#contextReference+1] = {
+      trigger = trigger,
+      struct = struct,
+      arg = arg or "",
+      command = struct[0] or ""
+    }
+    current_context = contextReference[#contextReference]
+    if current_context.struct[1] then
+      local command = current_context.command
+      current_context = contexts[#contexts]
+      current_context.command = command..separator..current_context.command
+      for l=#current_context, 1, -1 do
+        table.remove(current_context,l)
+      end
+    end
+    return true
+  end
+  return false
+end
+
 local function processTokens()
   local i = 1
+
   while tokens[i] ~= nil do
     local token = tokens[i]
 
     if current_context.trigger == nil then
-      local block,struct,next_index = find(i,DB,false)
-      if block then
-        contexts[#contexts+1] = {
-          trigger = block,
-          struct = struct,
-          arg = "",
-          command = (struct or {[0] = ""})[0] or ""
-        }
-        current_context = contexts[#contexts]
-      end
+      local block,struct = find(i,DB,false)
+      goDeepLevel(block,block,struct)
     else
       if Language.list_separators[token] or Language.list_separators_symbols[token:sub(-1,-1)] then
         local block,struct,next_index = find(i+1,DB,false)
@@ -162,16 +181,9 @@ local function processTokens()
             if contexts[j][1] then
               local trigger = contexts[j][1].trigger
               local arg = contexts[j][1].arg
+              local struct = current_context.struct[trigger]
 
-              if current_context.struct[trigger] then
-                local struct = current_context.struct[trigger]
-                current_context[#current_context+1] = {
-                  trigger = trigger ,
-                  struct = struct,
-                  arg = arg,
-                  command = struct[0] or ""
-                }
-                current_context = current_context[#current_context]
+              if goDeepLevel(struct,trigger,struct,arg,true) then
                 token = nil
                 break
               end
@@ -182,14 +194,8 @@ local function processTokens()
             local splited = split(contexts[#contexts].arg)
             for j, word in ipairs(splited) do
               word = Language.normalize(word)
-              if current_context.struct[word] then
-                current_context[#current_context+1] = {
-                  trigger = word ,
-                  struct = current_context.struct[word],
-                  arg = "",
-                  command = current_context.struct[word][0] or ""
-                }
-                current_context = current_context[#current_context]
+              local struct = current_context.struct[word]
+              if goDeepLevel(struct,word,struct,"",true) then
                 for n = j+1, #splited, 1 do
                   current_context.arg = current_context.arg..splited[n]..(n == #splited and "" or " ")
                 end
@@ -200,32 +206,27 @@ local function processTokens()
           end
         end
 
+        local isPronoun = (Language.pronouns[(token or "")] or Language.pronouns[(token or ""):sub(1,-2)]) or false
+        if #current_context == 0 and isPronoun then
+          local struct = current_context.struct[token]
+          if goDeepLevel(struct,token,struct,"",true) then
+            token = nil
+          end
+        end
+
         if isPersonalPronoun and #current_context == 0 and #(contexts[#contexts-1] or {}) > 0 and contexts[#contexts] == current_context then
-          local testTigger = contexts[#contexts-1][1].trigger
-          if current_context.struct[testTigger] then
-            local struct = current_context.struct[testTigger]
+          local testTrigger = contexts[#contexts-1][1].trigger
+          if current_context.struct[testTrigger] then
+            local struct = current_context.struct[testTrigger]
             local arg = nil
             for j=#contexts-1, 1, -1 do
               if (contexts[j][1] or {}).arg ~= "" and (contexts[j][1] or {}).arg ~= nil then
                 arg = (contexts[j][1] or {}).arg
               end
             end
-            if arg then
-              current_context[#current_context+1] = {
-                trigger = testTigger,
-                struct = struct,
-                arg = arg,
-                command = struct[0] or ""
-              }
-              current_context = current_context[#current_context]
-              if current_context.struct[token] then
-                current_context[#current_context+1] = {
-                  trigger = token,
-                  struct = current_context.struct[token],
-                  arg = "",
-                  command = current_context.struct[token][0] or ""
-                }
-                current_context = current_context[#current_context]
+            if goDeepLevel(arg,testTrigger,struct,arg,true) then
+              struct = current_context.struct[token]
+              if goDeepLevel(struct,token,struct,"",true) then
                 token = nil
               end
             end
@@ -233,14 +234,8 @@ local function processTokens()
         end
 
         local block,struct,next_index = find(Language.pronouns[token] and i+1 or i,current_context.struct,false)
-        if block then
-          current_context[#current_context+1] = {
-            trigger = block,
-            struct = struct,
-            arg = "",
-            command = (struct or {[0] = ""})[0] or ""
-          }
-          current_context = current_context[#current_context]
+        struct = struct or {}
+        if goDeepLevel(block,block,struct,"",true) then
           i = next_index or i
         else
           local arg = current_context.arg
@@ -261,58 +256,97 @@ end
 local function learn()
   local datasheet = io.open("datasheet.tsv","r")
   local db = {}
+  local rows = {}
+  local tmpLine = ""
+  local lineIsOk = false
+
   for line in (datasheet):lines("l") do
-      local input = line:gsub("\t.*","")
-      local command = line:gsub("^.*\t","")
-      local tokens = {}
-      for token in input:gmatch("[^%s]+") do
-          if not (Language.pronouns[token] or Language.personal_pronoun[token] or Language.prepositions[token]) then
-              tokens[#tokens+1] = #tokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
+      tmpLine = tmpLine..line
+      local fields = {}
+      for field in  tmpLine:gsub("\r",""):gmatch("[^\t]*")  do
+        local doubleQuotesCount = 0
+        for _ in field:gmatch('"') do
+            doubleQuotesCount = doubleQuotesCount+1
+        end
+
+        lineIsOk = doubleQuotesCount%2 == 0
+
+        if lineIsOk then
+          if field:sub(1,1) == '"' and field:sub(-1,-1) == '"' then
+            field = field:sub(2,-2)
           end
+          fields[#fields+1] = field
+          tmpLine = ""
+        end
       end
 
-      local n = 1
-      for i = 1, #tokens, 1 do
-        if command:match(tokens[i]) then
-          command = command:gsub(tokens[i],"\\0{"..tostring(i-n).."}")
-          n = n+1
-          tokens[i] = false
-        else
-          tokens[i] = Language.normalize(tokens[i])
-        end
-      end
-      for i = #tokens, 1, -1 do
-          if tokens[i] == false then
-            table.remove(tokens,i)
-          end
-      end
-      local emptyTable = {}
-      local currentStruct = emptyTable
-      for i, token in ipairs(tokens) do
-        if currentStruct == emptyTable then
-          db[token] = db[token] or {}
-          currentStruct = db[token]
-        else
-          currentStruct[token] = currentStruct[token] or {}
-          currentStruct = currentStruct[token]
-          if i == #tokens then
-            currentStruct[0] = command
-          end
-        end
+      if lineIsOk then
+        rows[#rows+1] = fields
       end
   end
-  local printDB
+
+  for _,row in ipairs(rows) do
+    local input = row[1]
+    local command = row[2]
+
+    local tokens = {}
+    for token in input:gmatch("[^%s]+") do
+        if not (Language.pronouns[token] or Language.personal_pronoun[token] or Language.prepositions[token]) then
+            tokens[#tokens+1] = #tokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
+        end
+    end
+
+    local n = 1
+    for i = 1, #tokens, 1 do
+      if command:match(tokens[i]) then
+        command = command:gsub(tokens[i],"\\0{"..tostring(i-n).."}")
+        n = n+1
+        tokens[i] = false
+      else
+        tokens[i] = Language.normalize(tokens[i])
+      end
+    end
+    for i = #tokens, 1, -1 do
+        if tokens[i] == false then
+          table.remove(tokens,i)
+        end
+    end
+    local emptyTable = {}
+    local currentStruct = emptyTable
+    for i, token in ipairs(tokens) do
+      if currentStruct == emptyTable then
+        db[token] = db[token] or {}
+        currentStruct = db[token]
+        currentStruct[0] = command:gsub("\n","\\n")
+        currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
+      else
+        currentStruct[token] = currentStruct[token] or {}
+        currentStruct = currentStruct[token]
+        if i == #tokens then
+          currentStruct[0] = command:gsub("\n","\\n")
+          currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
+        end
+      end
+    end
+  end
+
   local dbString = "DB = {\n"
-  function printDB (struct,level)
-      local padding = ("  "):rep(level)
-      for key, value in pairs(struct) do
-          if type(value) ~= "string" then
-            dbString = dbString..(padding..'["'..key..'"] = {\n')
-            printDB(value,level+1)
-            dbString = dbString..(padding..'},\n')
-          else
-            dbString = dbString..(padding.."[0] = \""..value:gsub("\"","\\\"").."\",\n")
-          end
+  local function printDB (struct,level)
+      if type(struct) == "table" then
+        local padding = ("  "):rep(level)
+        for key, value in pairs(struct) do
+            if type(value) ~= "string" then
+              if type(key) == "number" then
+                dbString = dbString..(padding..'['..key..'] = '..tostring(value)..',\n')
+              else
+                dbString = dbString..(padding..'["'..key..'"] = {\n')
+                printDB(value,level+1)
+                dbString = dbString..(padding..'},\n')
+              end
+            else
+              dbString = dbString..(padding.."[0] = \""..value:gsub("\"","\\\"").."\",\n")
+            end
+        end
       end
   end
 
@@ -320,10 +354,9 @@ local function learn()
   dbString = dbString.."}"
 
   print(dbString)
-  os.exit()
-  local f = io.open("database.lua","w+b") or {}
-  f:write(string.dump(load(dbString) or print,true))
-  os.exit()
+
+  local f = io.open(updadeIdrish and "databases/"..lang.."/idris-shell.lua" or "database.lua","w+b") or {}
+  f:write(updadeIdrish and dbString or string.dump(load(dbString) or print,true))
 end
 
 local compileMode = false
@@ -347,6 +380,9 @@ for i = #arg, 1, -1 do
     table.remove(arg,i)
   elseif argument == "--compile" or argument == "-c" then
     compileMode = true
+  elseif argument == "--update-idri-shell" or argument == "-u" then
+    compileMode = true
+    updadeIdrish = true
   elseif argument == "--verbose" or argument == "-v" then
     separator = ";\n"
     warn "@on"
