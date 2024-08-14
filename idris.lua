@@ -34,6 +34,7 @@ local function printUsage()
   os.exit(0)
 end
 
+Language = {}
 local lang,database,prefix,separator,interactive,shellOutput,debugMode,updadeIdrish = nil,nil,"","\n",false,false,false,false
 
 local tokens,contexts,current_context = {},{},{}
@@ -108,7 +109,7 @@ local function printOutput(levels,base,args,contextPrinted)
         if debugMode then
           if contextPrinted == false then
             io.write("\n")
-            printContexts(0,contexts,_)
+            printContexts(0,contexts)
             io.write("------------------------------------------------------------------------\n\n")
             contextPrinted = true
           end
