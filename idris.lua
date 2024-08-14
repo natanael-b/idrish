@@ -311,14 +311,16 @@ local function learn()
           table.remove(tokens,i)
         end
     end
-    local emptyTable = {}
-    local currentStruct = emptyTable
+
+    local currentStruct = {}
     for i, token in ipairs(tokens) do
-      if currentStruct == emptyTable then
+      if i == 1 then
         db[token] = db[token] or {}
         currentStruct = db[token]
-        currentStruct[0] = command:gsub("\n","\\n")
-        currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
+        if #tokens == i then
+                currentStruct[0] = command:gsub("\n","\\n")
+                currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
+        end
       else
         currentStruct[token] = currentStruct[token] or {}
         currentStruct = currentStruct[token]
