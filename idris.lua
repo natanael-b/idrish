@@ -261,7 +261,7 @@ local function learn()
   local lineIsOk = false
 
   for line in (datasheet):lines("l") do
-      tmpLine = tmpLine..line
+      tmpLine = tmpLine..line:gsub("‘","'"):gsub("’","'"):gsub('“','"'):gsub('”','"')
       local fields = {}
       for field in  tmpLine:gsub("\r",""):gmatch("[^\t]*")  do
         local doubleQuotesCount = 0
