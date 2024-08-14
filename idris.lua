@@ -128,22 +128,39 @@ local function printOutput(levels,base,args,contextPrinted)
   end
 end
 
+local function goDeepLevel(control,trigger,struct,arg,subLevel)
+  struct = struct or {}
+  local contextReference = subLevel and current_context or contexts
+  if control then
+    contextReference[#contextReference+1] = {
+      trigger = trigger,
+      struct = struct,
+      arg = arg or "",
+      command = struct[0] or ""
+    }
+    current_context = contextReference[#contextReference]
+    if current_context.struct[1] then
+      local command = current_context.command
+      current_context = contexts[#contexts]
+      current_context.command = command..separator..current_context.command
+      for l=#current_context, 1, -1 do
+        table.remove(current_context,l)
+      end
+    end
+    return true
+  end
+  return false
+end
+
 local function processTokens()
   local i = 1
+
   while tokens[i] ~= nil do
     local token = tokens[i]
 
     if current_context.trigger == nil then
-      local block,struct,next_index = find(i,DB,false)
-      if block then
-        contexts[#contexts+1] = {
-          trigger = block,
-          struct = struct,
-          arg = "",
-          command = (struct or {[0] = ""})[0] or ""
-        }
-        current_context = contexts[#contexts]
-      end
+      local block,struct = find(i,DB,false)
+      goDeepLevel(block,block,struct)
     else
       if Language.list_separators[token] or Language.list_separators_symbols[token:sub(-1,-1)] then
         local block,struct,next_index = find(i+1,DB,false)
@@ -164,26 +181,9 @@ local function processTokens()
             if contexts[j][1] then
               local trigger = contexts[j][1].trigger
               local arg = contexts[j][1].arg
+              local struct = current_context.struct[trigger]
 
-              if current_context.struct[trigger] then
-                local struct = current_context.struct[trigger]
-                current_context[#current_context+1] = {
-                  trigger = trigger ,
-                  struct = struct,
-                  arg = arg,
-                  command = struct[0] or ""
-                }
-                current_context = current_context[#current_context]
-
-                if current_context.struct[1] then
-                  local command = current_context.command
-                  current_context = contexts[#contexts]
-                  current_context.command = command..separator..current_context.command
-                  for l=#current_context, 1, -1 do
-                    table.remove(current_context,l)
-                  end
-                end
-  
+              if goDeepLevel(struct,trigger,struct,arg,true) then
                 token = nil
                 break
               end
@@ -194,27 +194,11 @@ local function processTokens()
             local splited = split(contexts[#contexts].arg)
             for j, word in ipairs(splited) do
               word = Language.normalize(word)
-              if current_context.struct[word] then
-                current_context[#current_context+1] = {
-                  trigger = word ,
-                  struct = current_context.struct[word],
-                  arg = "",
-                  command = current_context.struct[word][0] or ""
-                }
-                current_context = current_context[#current_context]
+              local struct = current_context.struct[word]
+              if goDeepLevel(struct,word,struct,"",true) then
                 for n = j+1, #splited, 1 do
                   current_context.arg = current_context.arg..splited[n]..(n == #splited and "" or " ")
                 end
-
-                if current_context.struct[1] then
-                  local command = current_context.command
-                  current_context = contexts[#contexts]
-                  current_context.command = command..separator..current_context.command
-                  for j=#current_context, 1, -1 do
-                    table.remove(current_context,j)
-                  end
-                end
-  
                 contexts[#contexts].arg = ""
                 break
               end
@@ -224,24 +208,8 @@ local function processTokens()
 
         local isPronoun = (Language.pronouns[(token or "")] or Language.pronouns[(token or ""):sub(1,-2)]) or false
         if #current_context == 0 and isPronoun then
-          if current_context.struct[token] then
-            current_context[#current_context+1] = {
-              trigger = token,
-              struct = current_context.struct[token],
-              arg = "",
-              command = current_context.struct[token][0] or ""
-            }
-            current_context = current_context[#current_context]
-
-            if current_context.struct[1] then
-              local command = current_context.command
-              current_context = contexts[#contexts]
-              current_context.command = command..separator..current_context.command
-              for j=#current_context, 1, -1 do
-                table.remove(current_context,j)
-              end
-            end
-
+          local struct = current_context.struct[token]
+          if goDeepLevel(struct,token,struct,"",true) then
             token = nil
           end
         end
@@ -256,32 +224,9 @@ local function processTokens()
                 arg = (contexts[j][1] or {}).arg
               end
             end
-            if arg then
-              current_context[#current_context+1] = {
-                trigger = testTrigger,
-                struct = struct,
-                arg = arg,
-                command = struct[0] or ""
-              }
-              current_context = current_context[#current_context]
-
-              if current_context.struct[1] then
-                local command = current_context.command
-                current_context = contexts[#contexts]
-                current_context.command = command..separator..current_context.command
-                for j=#current_context, 1, -1 do
-                  table.remove(current_context,j)
-                end
-              end
-
-              if current_context.struct[token] then
-                current_context[#current_context+1] = {
-                  trigger = token,
-                  struct = current_context.struct[token],
-                  arg = "",
-                  command = current_context.struct[token][0] or ""
-                }
-                current_context = current_context[#current_context]
+            if goDeepLevel(arg,testTrigger,struct,arg,true) then
+              struct = current_context.struct[token]
+              if goDeepLevel(struct,token,struct,"",true) then
                 token = nil
               end
             end
@@ -289,24 +234,8 @@ local function processTokens()
         end
 
         local block,struct,next_index = find(Language.pronouns[token] and i+1 or i,current_context.struct,false)
-        if block then
-          current_context[#current_context+1] = {
-            trigger = block,
-            struct = struct,
-            arg = "",
-            command = (struct or {[0] = ""})[0] or ""
-          }
-          current_context = current_context[#current_context]
-
-          if current_context.struct[1] then
-            local command = current_context.command
-            current_context = contexts[#contexts]
-            current_context.command = command..separator..current_context.command
-            for j=#current_context, 1, -1 do
-              table.remove(current_context,j)
-            end
-          end
-
+        struct = struct or {}
+        if goDeepLevel(block,block,struct,"",true) then
           i = next_index or i
         else
           local arg = current_context.arg
