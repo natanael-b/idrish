@@ -1,7 +1,7 @@
 local function printUsage()
   print([[
 
-    Idris v1.0
+    Idris v1.1
     --------------------------------------------------------------------------------
   
     Convert natural language instructions into executable scripts
@@ -18,6 +18,7 @@ local function printUsage()
     --prefix=<prefix>        =>  Adds an optional prefix to commands.
     --shell-output           =>  Formats the output for shell script usage.
     --interactive            =>  Entra no modo iterativo
+    --datasheet=<file>       =>  Use <file> instead datasheet.tsv
     --compile, -c            =>  Generate a database from datasheet.tsv file
     --update-idri-shell, -u  =>  Update idri-shell database (implies in --compile)
     --verbose, -v            =>  Activates verbose output.
@@ -36,8 +37,7 @@ end
 
 Language = {}
 local lang,database,prefix,separator,interactive,shellOutput,debugMode,updadeIdrish = nil,nil,"","\n",false,false,false,false
-
-local tokens,contexts,current_context = {},{},{}
+local tokens,contexts,current_context,tsv_datasheet = {},{},{},"datasheet.tsv"
 
 local function split(input)
   local words = {}
@@ -254,7 +254,7 @@ local function processTokens()
 end
 
 local function learn()
-  local datasheet = io.open("datasheet.tsv","r")
+  local datasheet = io.open(tsv_datasheet,"r")
   local db = {}
   local rows = {}
   local tmpLine = ""
@@ -372,6 +372,9 @@ for i = #arg, 1, -1 do
     table.remove(arg,i)
   elseif argument:sub(1, 11) == "--database=" then
     database = tostring(argument):sub(12, -1)
+    table.remove(arg,i)
+  elseif argument:sub(1, 12) == "--datasheet=" then
+    tsv_datasheet = argument:sub(13,-1)
     table.remove(arg,i)
   elseif argument:sub(1, 9) == "--prefix=" then
     prefix = tostring(argument):sub(10, -1)
