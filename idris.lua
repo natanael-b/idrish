@@ -84,6 +84,9 @@ local function printContexts(levels,base)
   for _,context in ipairs(base) do
     print(("  "):rep(levels)..(levels == 0 and "local db_slice_".._.." = {" or "{"))
     print(("  "):rep(levels).."  trigger = '"..context.trigger:gsub("\n","\\n"):gsub("'","\\'").."',")
+    if levels == 0 then
+      print(("  "):rep(levels).."  prefix = '"..(context.prefix or ''):gsub("\n","\\n"):gsub("'","\\'").."',")
+    end
     print(("  "):rep(levels).."  arg = '"..context.arg:gsub("\n","\\n"):gsub("'","\\'").."',")
     print(("  "):rep(levels).."  command = '"..context.command:gsub("\n","\\n"):gsub("'","\\'").."',")
     printContexts(levels+1,context)
@@ -96,6 +99,7 @@ local function printOutput(levels,base,args,contextPrinted)
   for _, context in ipairs(base) do
     if levels == 0 then
       local sub_args = {{context.arg,context.command}}
+      local _prefix = context.prefix or ''
       printOutput(levels+1,context,sub_args)
       local commandOutput = ""
       if context.command:sub(-1,-1) ~= "\r" then
@@ -104,7 +108,7 @@ local function printOutput(levels,base,args,contextPrinted)
           for j = 1, #sub_args, 1 do
             command = command:gsub("\0{"..j.."}",sub_args[j][1])
           end
-          commandOutput = command
+          commandOutput = command:gsub("\0{0}",_prefix)
         end
         if debugMode then
           if contextPrinted == false then
@@ -154,13 +158,18 @@ end
 
 local function processTokens()
   local i = 1
-
+  local _prefix = ""
   while tokens[i] ~= nil do
     local token = tokens[i]
 
     if current_context.trigger == nil then
       local block,struct = find(i,DB,false)
-      goDeepLevel(block,block,struct)
+      if goDeepLevel(block,block,struct) then
+        current_context.prefix = _prefix
+        _prefix = ""
+      else
+        _prefix = _prefix == "" and token or _prefix.." "..token
+      end
     else
       if Language.list_separators[token] or Language.list_separators_symbols[token:sub(-1,-1)] then
         local block,struct,next_index = find(i+1,DB,false)
@@ -290,9 +299,14 @@ local function learn()
     local command = row[2]
 
     local tokens = {}
+    local _prefix = nil
     for token in input:gmatch("[^%s]+") do
         if not (Language.pronouns[token] or Language.personal_pronoun[token] or Language.prepositions[token]) then
-            tokens[#tokens+1] = #tokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
+            if _prefix == nil and token:lower() == token and #tokens == 0 then
+              _prefix = token
+            else
+              tokens[#tokens+1] = #tokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
+            end
         end
     end
 
@@ -306,6 +320,12 @@ local function learn()
         tokens[i] = Language.normalize(tokens[i])
       end
     end
+
+    if _prefix then
+      print("H")
+      command = command:gsub(_prefix,"\\0{0}")
+    end
+
     for i = #tokens, 1, -1 do
         if tokens[i] == false then
           table.remove(tokens,i)
