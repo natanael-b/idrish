@@ -262,7 +262,7 @@ local function processTokens()
   end
 end
 
-local function learn()
+local function compile()
   local datasheet = io.open(tsv_datasheet,"r")
   local db = {}
   local rows = {}
@@ -457,7 +457,7 @@ require("languages." .. lang)
 require("databases." .. lang .. "." .. database)
 
 if compileMode then
-  learn()
+  compile()
 end
 
 if interactive then
