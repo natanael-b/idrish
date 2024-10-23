@@ -1,4 +1,4 @@
-# 📝 Idris - 1.1 [![CI](https://github.com/natanael-b/idrish/actions/workflows/blank.yml/badge.svg)](https://github.com/natanael-b/idrish/actions/workflows/blank.yml)
+# 📝 Idris - 1.2 [![CI](https://github.com/natanael-b/idrish/actions/workflows/blank.yml/badge.svg)](https://github.com/natanael-b/idrish/actions/workflows/blank.yml)
 
 <p align=center>
 
@@ -44,10 +44,11 @@ lua5.4 idris.lua --lang=<código do idioma> --database=<banco de dados com coman
 #### ⚙️ Opções
 
 * `--lang=<código do idioma>`: Especifica o idioma a ser usado.
-* `--database=<banco de dados>: Define a fonte dos comandos, se não especificado usa o ´idris-shell`
+* `--database=<banco de dados>`: Define a fonte dos comandos, se não especificado usa o ´idris-shell`
 * `--prefix=<prefixo>`: Adiciona um prefixo opcional aos comandos.
 * `--shell-output`: Formata a saída para uso em scripts de shell.
 * `--interactive`: Entra no modo interativo.
+* `--learn`: Ativa um modo interativo para inserir linhas no arquivo datasheet
 * `--compile`, `-c`: Gera um banco de dados `database.lua` a partir do arquivo `datasheet.tsv`.
 * `--update-idris-shell`, `-u`: Modifica o comportamento de `--compile` para atualizar o arquivo `idri-shell.lua`
 * `--verbose`, `-v`: Ativa a saída verbosa.

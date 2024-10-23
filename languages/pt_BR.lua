@@ -90,6 +90,10 @@ Language = {
           return word:sub(1,-2).."ar"
       end
 
+      if word:sub(-2,-1) == "ze" then
+        return word:sub(1,-2).."ar"
+      end
+
       if word:sub(-2,-1) == "te" then
           return word:sub(1,-2).."ar"
       end
@@ -125,6 +129,8 @@ Language = {
       for _, vogal in ipairs(vogals) do
         new_word = new_word:gsub("r"..vogal.."s$","r"):gsub("z"..vogal.."z$",vogal)
       end
+      new_word = new_word:gsub("nse","nsi")
+
       return new_word
     end
   ,

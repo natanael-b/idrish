@@ -19,7 +19,8 @@ local function printUsage()
     --shell-output           =>  Formats the output for shell script usage.
     --interactive            =>  Entra no modo iterativo
     --datasheet=<file>       =>  Use <file> instead datasheet.tsv
-    --compile, -c            =>  Generate a database from datasheet.tsv file
+    --learn                  =>  A interactive mode to insert lines in datasheet file
+    --compile, -c            =>  Generate a database from datasheet file
     --update-idri-shell, -u  =>  Update idri-shell database (implies in --compile)
     --verbose, -v            =>  Activates verbose output.
     --debug, -d              =>  Prints de database location of each command
@@ -262,7 +263,7 @@ local function processTokens()
   end
 end
 
-local function learn()
+local function compile()
   local datasheet = io.open(tsv_datasheet,"r")
   local db = {}
   local rows = {}
@@ -298,53 +299,52 @@ local function learn()
     local input = row[1]
     local command = row[2]
 
-    local tokens = {}
+    local datasheetTokens = {}
     local _prefix = nil
     for token in input:gmatch("[^%s]+") do
         if not (Language.pronouns[token] or Language.personal_pronoun[token] or Language.prepositions[token]) then
-            if _prefix == nil and token:lower() == token and #tokens == 0 then
+            if _prefix == nil and token:lower() == token and #datasheetTokens == 0 then
               _prefix = token
             else
-              tokens[#tokens+1] = #tokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
+              datasheetTokens[#datasheetTokens+1] = #datasheetTokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
             end
         end
     end
 
     local n = 1
-    for i = 1, #tokens, 1 do
-      if command:match(tokens[i]) then
-        command = command:gsub(tokens[i],"\\0{"..tostring(i-n).."}")
+    for i = 1, #datasheetTokens, 1 do
+      if command:match(datasheetTokens[i]) then
+        command = command:gsub(datasheetTokens[i],"\\0{"..tostring(i-n).."}")
         n = n+1
-        tokens[i] = false
+        datasheetTokens[i] = false
       else
-        tokens[i] = Language.normalize(tokens[i])
+        datasheetTokens[i] = Language.normalize(datasheetTokens[i])
       end
     end
 
     if _prefix then
-      print("H")
       command = command:gsub(_prefix,"\\0{0}")
     end
 
-    for i = #tokens, 1, -1 do
-        if tokens[i] == false then
-          table.remove(tokens,i)
+    for i = #datasheetTokens, 1, -1 do
+        if datasheetTokens[i] == false then
+          table.remove(datasheetTokens,i)
         end
     end
 
     local currentStruct = {}
-    for i, token in ipairs(tokens) do
+    for i, token in ipairs(datasheetTokens) do
       if i == 1 then
         db[token] = db[token] or {}
         currentStruct = db[token]
-        if #tokens == i then
+        if #datasheetTokens == i then
                 currentStruct[0] = command:gsub("\n","\\n")
                 currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
         end
       else
         currentStruct[token] = currentStruct[token] or {}
         currentStruct = currentStruct[token]
-        if i == #tokens then
+        if i == #datasheetTokens then
           currentStruct[0] = command:gsub("\n","\\n")
           currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
         end
@@ -381,7 +381,75 @@ local function learn()
   f:write(updadeIdrish and dbString or string.dump(load(dbString) or print,true))
 end
 
-local compileMode = false
+local function learn()
+  while true do
+    io.write("\027[H\027[2J")
+    print "\n Welcome to learn mode of Idris"
+    print "-----------------------------------------------------------------\n"
+    print "  Is very easy to use:\n"
+    print "    1) Type what user need to type to run the command\n       and press Enter"
+    print "    2) Type the command it's self and press Enter"
+    print "    3) Repeat"
+    print "    4) Type q or Q on \"User input:\" and press Enter to exit"
+    print "    5) Type c or C on \"User input:\" and press Enter to check\n       last line and optionally remove\n"
+    print "  Tip:"
+    print "    To take arguments from user prompt use characters sequence\n    that doesn't exists on command to avoid issues\n"
+    print "-----------------------------------------------------------------\n"
+    io.write "  User input: "
+    local userInput = io.read()
+
+    if userInput:lower() == "q" then
+      io.write("\027[H\027[2J")
+      os.exit()
+    end
+
+    local hairSpace = "\226\128\138 "
+
+    if userInput:lower() == "c" then
+      local datasheet = io.open(tsv_datasheet,"r")
+      local datasheetLines = {}
+      for line in (datasheet):lines("l") do
+        datasheetLines[#datasheetLines+1] = line
+      end
+      (datasheet):close()
+
+      local input = datasheetLines[#datasheetLines]:gsub("\t.*",""):gsub("^"..hairSpace,"")
+      local command = datasheetLines[#datasheetLines]:gsub("^.*\t",""):gsub("\t.*","")
+      io.write("\027[H\027[2J")
+      print "\n Last line check"
+      print "-----------------------------------------------------------------\n"
+      print("  User input:",input)
+      print("     Command:",command)
+      print "\n  Type y or Y to REMOVE the line\n"
+      io.write "  "
+      local remove = io.read()
+
+      if remove:lower() == "y" then
+        table.remove(datasheetLines,#datasheetLines)
+      end
+
+      datasheet = io.open(tsv_datasheet,"w");
+      (datasheet):write(table.concat(datasheetLines,"\n").."\n");
+      (datasheet):close()
+    elseif userInput:gsub("%s","") ~= "" then
+      io.write "     Command: "
+      local command = io.read()
+      local datasheet = io.open(tsv_datasheet,"r")
+      local datasheetLines = {}
+      for line in (datasheet):lines("l") do
+        datasheetLines[#datasheetLines+1] = line
+      end
+      datasheetLines[#datasheetLines+1] = hairSpace..(userInput).."\t"..command;
+      (datasheet):close()
+
+      datasheet = io.open(tsv_datasheet,"w");
+      (datasheet):write(table.concat(datasheetLines,"\n").."\n");
+      (datasheet):close()
+    end
+  end
+end
+
+local compileMode,learnMode = false,false
 
 for i = #arg, 1, -1 do
   local argument = arg[i]
@@ -403,6 +471,8 @@ for i = #arg, 1, -1 do
     separator = ";\n"
     shellOutput = true
     table.remove(arg,i)
+  elseif argument == "--learn" then
+    learnMode = true
   elseif argument == "--compile" or argument == "-c" then
     compileMode = true
   elseif argument == "--update-idri-shell" or argument == "-u" then
@@ -439,6 +509,10 @@ if lang == nil then
   end
 end
 
+if learnMode then
+  learn()
+end
+
 if database == nil then
   warn "Missing --database= parameter, fallback to idris-shell"
   database = "idris-shell"
@@ -453,11 +527,13 @@ if lang == nil or database == nil then
   printUsage()
 end
 
+DB = {}
+
 require("languages." .. lang)
 require("databases." .. lang .. "." .. database)
 
 if compileMode then
-  learn()
+  compile()
 end
 
 if interactive then
