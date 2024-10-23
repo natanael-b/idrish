@@ -403,6 +403,8 @@ local function learn()
       os.exit()
     end
 
+    local hairSpace = "\226\128\138 "
+
     if userInput:lower() == "c" then
       local datasheet = io.open(tsv_datasheet,"r")
       local datasheetLines = {}
@@ -411,7 +413,7 @@ local function learn()
       end
       (datasheet):close()
 
-      local input = datasheetLines[#datasheetLines]:gsub("\t.*","")
+      local input = datasheetLines[#datasheetLines]:gsub("\t.*",""):gsub("^"..hairSpace,"")
       local command = datasheetLines[#datasheetLines]:gsub("^.*\t",""):gsub("\t.*","")
       io.write("\027[H\027[2J")
       print "\n Last line check"
@@ -437,7 +439,7 @@ local function learn()
       for line in (datasheet):lines("l") do
         datasheetLines[#datasheetLines+1] = line
       end
-      datasheetLines[#datasheetLines+1] = (userInput).."\t"..command;
+      datasheetLines[#datasheetLines+1] = hairSpace..(userInput).."\t"..command;
       (datasheet):close()
 
       datasheet = io.open(tsv_datasheet,"w");
