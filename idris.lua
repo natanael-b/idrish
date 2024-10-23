@@ -299,53 +299,52 @@ local function compile()
     local input = row[1]
     local command = row[2]
 
-    local tokens = {}
+    local datasheetTokens = {}
     local _prefix = nil
     for token in input:gmatch("[^%s]+") do
         if not (Language.pronouns[token] or Language.personal_pronoun[token] or Language.prepositions[token]) then
-            if _prefix == nil and token:lower() == token and #tokens == 0 then
+            if _prefix == nil and token:lower() == token and #datasheetTokens == 0 then
               _prefix = token
             else
-              tokens[#tokens+1] = #tokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
+              datasheetTokens[#datasheetTokens+1] = #datasheetTokens == 0 and Language.normalize(Language.infinitive(token:lower())) or token
             end
         end
     end
 
     local n = 1
-    for i = 1, #tokens, 1 do
-      if command:match(tokens[i]) then
-        command = command:gsub(tokens[i],"\\0{"..tostring(i-n).."}")
+    for i = 1, #datasheetTokens, 1 do
+      if command:match(datasheetTokens[i]) then
+        command = command:gsub(datasheetTokens[i],"\\0{"..tostring(i-n).."}")
         n = n+1
-        tokens[i] = false
+        datasheetTokens[i] = false
       else
-        tokens[i] = Language.normalize(tokens[i])
+        datasheetTokens[i] = Language.normalize(datasheetTokens[i])
       end
     end
 
     if _prefix then
-      print("H")
       command = command:gsub(_prefix,"\\0{0}")
     end
 
-    for i = #tokens, 1, -1 do
-        if tokens[i] == false then
-          table.remove(tokens,i)
+    for i = #datasheetTokens, 1, -1 do
+        if datasheetTokens[i] == false then
+          table.remove(datasheetTokens,i)
         end
     end
 
     local currentStruct = {}
-    for i, token in ipairs(tokens) do
+    for i, token in ipairs(datasheetTokens) do
       if i == 1 then
         db[token] = db[token] or {}
         currentStruct = db[token]
-        if #tokens == i then
+        if #datasheetTokens == i then
                 currentStruct[0] = command:gsub("\n","\\n")
                 currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
         end
       else
         currentStruct[token] = currentStruct[token] or {}
         currentStruct = currentStruct[token]
-        if i == #tokens then
+        if i == #datasheetTokens then
           currentStruct[0] = command:gsub("\n","\\n")
           currentStruct[1] = tostring(row[3]):lower() == "true" and true or false
         end
@@ -450,7 +449,7 @@ local function learn()
   end
 end
 
-local compileMode = false
+local compileMode,learnMode = false,false
 
 for i = #arg, 1, -1 do
   local argument = arg[i]
@@ -527,6 +526,8 @@ if lang == nil or database == nil then
   print ""
   printUsage()
 end
+
+DB = {}
 
 require("languages." .. lang)
 require("databases." .. lang .. "." .. database)
