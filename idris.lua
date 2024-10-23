@@ -19,7 +19,8 @@ local function printUsage()
     --shell-output           =>  Formats the output for shell script usage.
     --interactive            =>  Entra no modo iterativo
     --datasheet=<file>       =>  Use <file> instead datasheet.tsv
-    --compile, -c            =>  Generate a database from datasheet.tsv file
+    --learn                  =>  A interactive mode to insert lines in datasheet file
+    --compile, -c            =>  Generate a database from datasheet file
     --update-idri-shell, -u  =>  Update idri-shell database (implies in --compile)
     --verbose, -v            =>  Activates verbose output.
     --debug, -d              =>  Prints de database location of each command
@@ -381,6 +382,71 @@ local function compile()
   f:write(updadeIdrish and dbString or string.dump(load(dbString) or print,true))
 end
 
+local function learn()
+  while true do
+    io.write("\027[H\027[2J")
+    print "\n Welcome to learn mode of Idris"
+    print "-----------------------------------------------------------------\n"
+    print "  Is very easy to use:\n"
+    print "    1) Type what user need to type to run the command\n       and press Enter"
+    print "    2) Type the command it's self and press Enter"
+    print "    3) Repeat"
+    print "    4) Type q or Q on \"User input:\" and press Enter to exit"
+    print "    5) Type c or C on \"User input:\" and press Enter to check\n       last line and optionally remove\n"
+    print "  Tip:"
+    print "    To take arguments from user prompt use characters sequence\n    that doesn't exists on command to avoid issues\n"
+    print "-----------------------------------------------------------------\n"
+    io.write "  User input: "
+    local userInput = io.read()
+
+    if userInput:lower() == "q" then
+      os.exit()
+    end
+
+    if userInput:lower() == "c" then
+      local datasheet = io.open(tsv_datasheet,"r")
+      local datasheetLines = {}
+      for line in (datasheet):lines("l") do
+        datasheetLines[#datasheetLines+1] = line
+      end
+      datasheet:close()
+
+      local input = datasheetLines[#datasheetLines]:gsub("\t.*","")
+      local command = datasheetLines[#datasheetLines]:gsub("^.*\t",""):gsub("\t.*","")
+      io.write("\027[H\027[2J")
+      print "\n Last line check"
+      print "-----------------------------------------------------------------\n"
+      print("  User input:",input)
+      print("     Command:",command)
+      print "\n  Type y or Y to REMOVE the line\n"
+      io.write "  "
+      local remove = io.read()
+
+      if remove:lower() == "y" then
+        table.remove(datasheetLines,#datasheetLines)
+      end
+
+      datasheet = io.open(tsv_datasheet,"w")
+      datasheet:write(table.concat(datasheetLines,"\n").."\n")
+      datasheet:close()
+    else
+      io.write "     Command: "
+      local command = io.read()
+      local datasheet = io.open(tsv_datasheet,"r")
+      local datasheetLines = {}
+      for line in (datasheet):lines("l") do
+        datasheetLines[#datasheetLines+1] = line
+      end
+      datasheetLines[#datasheetLines+1] = userInput.."\t"..command
+      datasheet:close()
+
+      datasheet = io.open(tsv_datasheet,"w")
+      datasheet:write(table.concat(datasheetLines,"\n").."\n")
+      datasheet:close()
+    end
+  end
+end
+
 local compileMode = false
 
 for i = #arg, 1, -1 do
@@ -403,6 +469,8 @@ for i = #arg, 1, -1 do
     separator = ";\n"
     shellOutput = true
     table.remove(arg,i)
+  elseif argument == "--learn" then
+    learnMode = true
   elseif argument == "--compile" or argument == "-c" then
     compileMode = true
   elseif argument == "--update-idri-shell" or argument == "-u" then
@@ -460,6 +528,10 @@ if compileMode then
   compile()
 end
 
+
+if learnMode then
+  learn()
+end
 if interactive then
   while true do
     io.write("> ")
