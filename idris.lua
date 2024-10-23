@@ -400,6 +400,7 @@ local function learn()
     local userInput = io.read()
 
     if userInput:lower() == "q" then
+      io.write("\027[H\027[2J")
       os.exit()
     end
 
@@ -431,7 +432,7 @@ local function learn()
       datasheet = io.open(tsv_datasheet,"w");
       (datasheet):write(table.concat(datasheetLines,"\n").."\n");
       (datasheet):close()
-    else
+    elseif userInput:gsub("%s","") ~= "" then
       io.write "     Command: "
       local command = io.read()
       local datasheet = io.open(tsv_datasheet,"r")
