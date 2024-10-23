@@ -409,7 +409,7 @@ local function learn()
       for line in (datasheet):lines("l") do
         datasheetLines[#datasheetLines+1] = line
       end
-      datasheet:close()
+      (datasheet):close()
 
       local input = datasheetLines[#datasheetLines]:gsub("\t.*","")
       local command = datasheetLines[#datasheetLines]:gsub("^.*\t",""):gsub("\t.*","")
@@ -426,9 +426,9 @@ local function learn()
         table.remove(datasheetLines,#datasheetLines)
       end
 
-      datasheet = io.open(tsv_datasheet,"w")
-      datasheet:write(table.concat(datasheetLines,"\n").."\n")
-      datasheet:close()
+      datasheet = io.open(tsv_datasheet,"w");
+      (datasheet):write(table.concat(datasheetLines,"\n").."\n");
+      (datasheet):close()
     else
       io.write "     Command: "
       local command = io.read()
@@ -437,12 +437,12 @@ local function learn()
       for line in (datasheet):lines("l") do
         datasheetLines[#datasheetLines+1] = line
       end
-      datasheetLines[#datasheetLines+1] = userInput.."\t"..command
-      datasheet:close()
+      datasheetLines[#datasheetLines+1] = (userInput).."\t"..command;
+      (datasheet):close()
 
-      datasheet = io.open(tsv_datasheet,"w")
-      datasheet:write(table.concat(datasheetLines,"\n").."\n")
-      datasheet:close()
+      datasheet = io.open(tsv_datasheet,"w");
+      (datasheet):write(table.concat(datasheetLines,"\n").."\n");
+      (datasheet):close()
     end
   end
 end
@@ -507,6 +507,10 @@ if lang == nil then
   end
 end
 
+if learnMode then
+  learn()
+end
+
 if database == nil then
   warn "Missing --database= parameter, fallback to idris-shell"
   database = "idris-shell"
@@ -528,10 +532,6 @@ if compileMode then
   compile()
 end
 
-
-if learnMode then
-  learn()
-end
 if interactive then
   while true do
     io.write("> ")
