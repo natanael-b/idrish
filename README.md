@@ -61,6 +61,13 @@ lua5.4 idris.lua --lang=<código do idioma> --database=<banco de dados com coman
 ```bash
 lua5.4 idris.lua --lang=pt_BR 'crie um arquivo test.txt e insira a frase Hello World nele!'
 ```
+A saída experada é:
+
+```sh
+touch 'test.txt';
+echo 'Hello World' >> 'test.txt';
+```
+
 
 #### Modo interativo
 
