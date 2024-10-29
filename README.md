@@ -61,7 +61,7 @@ lua5.4 idris.lua --lang=<código do idioma> --database=<banco de dados com coman
 ```bash
 lua5.4 idris.lua --lang=pt_BR 'crie um arquivo test.txt e insira a frase Hello World nele!'
 ```
-A saída experada é:
+A saída esperada é:
 
 ```sh
 touch 'test.txt';
@@ -75,6 +75,33 @@ Para entrar no modo interativo, execute o comando nenhuma entrada:
 
 ```
 lua5.4 idris.lua --lang=pt_BR --database=idris-shell
+```
+
+### 📌 Exemplos
+
+#### Básico
+```bash
+lua5.4 idris.lua --lang=pt_BR 'crie um arquivo test.txt e insira a frase Hello World nele!'
+```
+A saída esperada é:
+
+```sh
+touch 'test.txt';
+echo 'Hello World' >> 'test.txt';
+```
+### 🧩 Estendendo
+
+Estender o Idrish envolve editar o arquivo `datasheet.tsv` ou o arquivo passado com `--datasheet=` num formato específico, compilar usando `--compile` e atualizando com `--update-idri-shell`, isso pode ser complexo
+se você não tiver familiariade com a ferramenta, para facilitar use o comando a seguir para iniciar um editor simplificado que pergunta as informações e formata:
+
+```bash
+lua5.4 idris.lua --learn
+```
+
+E esse para compilar e atualizar:
+
+```
+lua5.4 idris.lua --lang=pt_BR --compile --update-idri-shell
 ```
 
 # 🤝 Contribuição
