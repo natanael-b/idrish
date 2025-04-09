@@ -3,7 +3,7 @@
 <p align=center>
 
 ![](resources/idrish/print.png)
-Idris é uma ferramenta para converter instruções em linguagem natural em scripts executáveis
+Idris é uma ferramenta que transforma instruções em linguagem natural em comandos de terminal executáveis
 
 </p>
 
@@ -12,9 +12,9 @@ Idris é uma ferramenta para converter instruções em linguagem natural em scri
 - **Tolerante a erros**, O Idris tolera um alto grau de erros de digitação sem que isso afete o resultado, por exemplo "pequizar" ainda será entendido como "pesquisar"
 - **Leveza**, Idris roda em condições extremas de recursos consumindo menos de 30 MB de RAM e funcionando em CPUs com 400 MHz
 - **Offline**, Idris está sempre disponível não depende de conexões com servidores externos
-- **Fácil de extender**, forneça um input e o comando que espera sair separado por tab no arquivo `database.tsv`
+- **Fácil de estender**, forneça um input e o comando que espera sair separado por tab no arquivo `database.tsv`
 - **Gratuito**, Idris é completamente gratuito você _não precisa_ pagar para usar
-- **Software Livre**, com uma licença permissiva (MIT) você pode modificar, extender e embutir o Idris sem se preocupar
+- **Software Livre**, com uma licença permissiva (MIT) você pode modificar, estender e embutir o Idris sem se preocupar
 - **Ilimitado**, Como é 100% offline Idris não sofre com limites de uso
 - **Instantâneo**, mesmo com bases enormes Idris é capaz de fornecer os comandos instantaneamente
 
@@ -43,17 +43,26 @@ lua5.4 idris.lua --lang=<código do idioma> --database=<banco de dados com coman
 
 #### ⚙️ Opções
 
-* `--lang=<código do idioma>`: Especifica o idioma a ser usado.
-* `--database=<banco de dados>`: Define a fonte dos comandos, se não especificado usa o ´idris-shell`
-* `--prefix=<prefixo>`: Adiciona um prefixo opcional aos comandos.
-* `--shell-output`: Formata a saída para uso em scripts de shell.
-* `--interactive`: Entra no modo interativo.
-* `--learn`: Ativa um modo interativo para inserir linhas no arquivo datasheet
-* `--compile`, `-c`: Gera um banco de dados `database.lua` a partir do arquivo `datasheet.tsv`.
-* `--update-idris-shell`, `-u`: Modifica o comportamento de `--compile` para atualizar o arquivo `idri-shell.lua`
-* `--verbose`, `-v`: Ativa a saída verbosa.
-* `--debug`, `-d`: Imprime a localização do banco de dados de cada comando.
-* `--help`, `-h`: Exibe a mensagem de ajuda.
+**Idioma e banco de dados**
+- `--lang=<código do idioma>`: Especifica o idioma a ser usado.
+- `--database=<banco de dados>`: Define a fonte dos comandos.
+- `--prefix=<prefixo>`: Adiciona um prefixo opcional aos comandos.
+
+**Execução e saída**
+- `--shell-output`: Formata a saída para uso em scripts de shell.
+- `--verbose`, `-v`: Ativa a saída verbosa.
+- `--debug`, `-d`: Mostra a origem de cada comando no banco.
+
+**Modos especiais**
+- `--interactive`: Modo interativo.
+- `--learn`: Modo de aprendizado para inserir novos comandos.
+
+**Compilação**
+- `--compile`, `-c`: Gera `database.lua` a partir de `datasheet.tsv`.
+- `--update-idris-shell`, `-u`: Atualiza o `idris-shell.lua` após compilar.
+
+- `--help`, `-h`: Exibe esta mensagem de ajuda.
+
 
 ### 📌 Exemplos
 
